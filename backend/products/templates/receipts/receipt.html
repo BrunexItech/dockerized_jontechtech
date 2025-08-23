@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Receipt {{ order.receipt_number|default:order.id }}</title>
+  <style>
+    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; color: #111; }
+    .wrap { width: 540px; margin: 0 auto; }
+    h1 { font-size: 18px; margin: 0 0 6px; }
+    h3 { margin: 8px 0 4px; }
+    .muted { color: #666; }
+    .row { display: flex; justify-content: space-between; margin: 4px 0; }
+    .hr { border-top: 1px dashed #aaa; margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+    th, td { border-bottom: 1px solid #eee; padding: 6px 4px; text-align: left; }
+    th { background: #f7f7f7; }
+    .right { text-align: right; }
+    .total { font-weight: bold; font-size: 14px; }
+    .footer { margin-top: 16px; font-size: 11px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>JONTECH</h1>
+    <div class="muted">Thank you for your purchase</div>
+
+    <div class="hr"></div>
+
+    <div class="row"><div>Receipt</div><div>{{ order.status }}</div></div>
+    <div class="row"><div>Order ID</div><div>#{{ order.id }}</div></div>
+    <div class="row"><div>Date</div><div>{{ order.created_at|date:"M d, Y H:i" }}</div></div>
+    <div class="row"><div>Payment</div><div>{{ order.payment_method|upper }}</div></div>
+    {% if order.receipt_number %}
+    <div class="row"><div>Receipt No.</div><div>{{ order.receipt_number }}</div></div>
+    {% endif %}
+
+    <div class="hr"></div>
+
+    <h3 class="muted">Items</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th class="right">Qty</th>
+          <th class="right">Unit</th>
+          <th class="right">Line</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in order.items.all %}
+        <tr>
+          <td>{{ it.name }}</td>
+          <td class="right">{{ it.quantity }}</td>
+          <td class="right">Ksh {{ it.unit_price }}</td>
+          <td class="right">Ksh {{ it.line_total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="row"><div class="muted">Subtotal</div><div>Ksh {{ order.subtotal }}</div></div>
+    <div class="row"><div class="muted">Shipping</div><div>Ksh {{ order.shipping_fee }}</div></div>
+    <div class="row total"><div>Total</div><div>Ksh {{ order.total }}</div></div>
+
+    <div class="hr"></div>
+
+    <h3 class="muted">Ship To</h3>
+    <div>{{ order.ship_full_name }}</div>
+    <div>{{ order.ship_phone }}</div>
+    <div>{{ order.ship_address1 }}{% if order.ship_address2 %}, {{ order.ship_address2 }}{% endif %}</div>
+    <div>{{ order.ship_city }}, {{ order.ship_country }}</div>
+
+    <div class="footer">
+      This receipt may show status <b>{{ order.status }}</b> if payment is due on delivery.
+      For support, contact JONTECH.
+    </div>
+  </div>
+</body>
+</html>
