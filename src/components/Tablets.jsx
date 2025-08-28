@@ -109,6 +109,15 @@ export default function Tablets() {
     }
   };
 
+  // Click/keyboard helpers for cards
+  const goToDetails = (id) => navigate(`/tablet/${id}`);
+  const onCardKey = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToDetails(id);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6 text-center">Top Tablets in Kenya (2025)</h1>
@@ -165,9 +174,14 @@ export default function Tablets() {
               return (
                 <div
                   key={t.id}
-                  className="flex flex-col border rounded-lg shadow hover:shadow-lg transition bg-white"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View details for ${t.name}`}
+                  onClick={() => goToDetails(t.id)}
+                  onKeyDown={(e) => onCardKey(e, t.id)}
+                  className="flex flex-col border rounded-lg shadow hover:shadow-lg transition bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
                 >
-                  <div className="h-48 w-full rounded-t-lg flex items-center justify-center bg-white">
+                  <div className="h-48 w-full rounded-t-lg flex items-center justify-center bg-white overflow-hidden">
                     <img
                       src={t.image || FallbackImg}
                       alt={t.name}
@@ -201,7 +215,10 @@ export default function Tablets() {
                     <div className="mt-auto grid grid-cols-2 gap-2">
                       <button
                         className="bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 rounded transition"
-                        onClick={() => navigate(`/tablet/${t.id}`)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // don’t trigger card click
+                          goToDetails(t.id);
+                        }}
                       >
                         View Details
                       </button>
@@ -215,7 +232,8 @@ export default function Tablets() {
                               : "bg-blue-600 hover:bg-blue-700 text-white"
                             : "bg-gray-200 text-gray-500 cursor-not-allowed"
                         }`}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation(); // don’t trigger card click
                           if (!t.product_id || isAdding) return;
                           handleBuyNow(t);
                         }}

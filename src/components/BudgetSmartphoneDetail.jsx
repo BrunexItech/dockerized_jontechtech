@@ -4,6 +4,8 @@ import api from "../api";
 import { toast } from "react-toastify";
 
 const FallbackImg = "/images/fallback.jpg";
+// If your list route is different, change this:
+const LIST_ROUTE = "/budget-smartphones";
 
 export default function BudgetSmartphoneDetail() {
   const { id } = useParams(); // /budget-smartphones/:id
@@ -13,6 +15,31 @@ export default function BudgetSmartphoneDetail() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+
+  // Helper: scroll the actual page (handles different browsers)
+  const scrollPageTop = (behavior = "smooth") => {
+    const el =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    el.scrollTo({ top: 0, behavior });
+  };
+
+  // Disable browser's automatic scroll restoration while this page is active
+  useEffect(() => {
+    const prev = window.history.scrollRestoration;
+    try {
+      window.history.scrollRestoration = "manual";
+    } catch {}
+    // Ensure we start at top when opening/changing id
+    scrollPageTop("auto");
+    return () => {
+      try {
+        window.history.scrollRestoration = prev || "auto";
+      } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,11 +80,28 @@ export default function BudgetSmartphoneDetail() {
     }
   };
 
+  const handleBack = () => {
+    // Scroll this page to top (nice UX) then go to list route for a fresh mount at top.
+    scrollPageTop();
+    navigate(LIST_ROUTE);
+    // If you *must* use navigate(-1), keep scrollRestoration='manual' globally (in App)
+    // or add a scroll-to-top effect in the list page.
+  };
+
+  const handleCheckout = () => {
+    if (!data?.product_id) {
+      toast.error("This item is not available for purchase yet.");
+      return;
+    }
+    scrollPageTop();
+    navigate(`/checkout?product_id=${data.product_id}`);
+  };
+
   if (loading) return <div className="p-6 text-center text-gray-600">Loading…</div>;
   if (err) return (
     <div className="p-6 text-center">
       <p className="text-red-600 mb-4">Error: {err}</p>
-      <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={() => navigate(-1)}>
+      <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={handleBack}>
         Go Back
       </button>
     </div>
@@ -72,7 +116,7 @@ export default function BudgetSmartphoneDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <button className="mb-6 px-4 py-2 rounded bg-gray-100 hover:bg-gray-200" onClick={() => navigate(-1)}>
+      <button className="mb-6 px-4 py-2 rounded bg-gray-100 hover:bg-gray-200" onClick={handleBack}>
         ← Back
       </button>
 
@@ -119,13 +163,7 @@ export default function BudgetSmartphoneDetail() {
               className={`px-5 py-2 rounded-xl ${
                 product_id ? "bg-gray-100 hover:bg-gray-200 text-gray-900" : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
-              onClick={() => {
-                if (!product_id) {
-                  toast.error("This item is not available for purchase yet.");
-                  return;
-                }
-                navigate(`/checkout?product_id=${product_id}`);
-              }}
+              onClick={handleCheckout}
               disabled={!product_id}
             >
               Checkout

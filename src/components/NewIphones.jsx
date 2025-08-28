@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, ShoppingCart } from "lucide-react";
 import api from "../api";
@@ -62,7 +62,7 @@ export default function NewIphones() {
     return () => { cancelled = true; };
   }, [badgeFilter, search, ordering, page, pageSize]);
 
-  // load single global banner
+  // load banner
   useEffect(() => {
     let cancelled = false;
     async function loadBanner() {
@@ -70,7 +70,6 @@ export default function NewIphones() {
         const data = await api.newIphones.banner();
         if (!cancelled && data && data.banner_image) setBanner(data.banner_image);
       } catch (e) {
-        // 204 or failure — just fallback silently
         console.warn("No global banner or failed to load:", e?.message || e);
       }
     }
@@ -83,7 +82,9 @@ export default function NewIphones() {
   const pageBanner = banner || ip7;
 
   const toggleWishlist = (id) => {
-    setWishlist((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    setWishlist((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
   };
 
   const handleBuyNow = async (item) => {
@@ -95,8 +96,13 @@ export default function NewIphones() {
     setAddingMap((m) => ({ ...m, [id]: true }));
     try {
       const updated = await api.cart.add(item.product_id, 1);
-      const count = (updated.items || []).reduce((acc, i) => acc + (i.quantity || 0), 0);
-      window.dispatchEvent(new CustomEvent("cart-updated", { detail: { count } }));
+      const count = (updated.items || []).reduce(
+        (acc, i) => acc + (i.quantity || 0),
+        0
+      );
+      window.dispatchEvent(
+        new CustomEvent("cart-updated", { detail: { count } })
+      );
       toast.success(`${item.name} added to cart`);
     } catch (e) {
       toast.error(e?.message || "Failed to add to cart");
@@ -109,11 +115,31 @@ export default function NewIphones() {
     }
   };
 
+  const goToDetail = (id) => {
+    try {
+      (document.scrollingElement ||
+        document.documentElement ||
+        document.body)?.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (_) {}
+    navigate(`/new-iphones/${id}`);
+  };
+
+  const handleCardKeyDown = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToDetail(id);
+    }
+  };
+
   return (
     <section className="max-w-7xl mx-auto px-4 py-10 font-sans">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-extrabold  text-gray-900 tracking-tight">New iPhones</h2>
-        <span className="text-lg font-medium text-green-500 italic">Premium Collection</span>
+        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+          New iPhones
+        </h2>
+        <span className="text-lg font-medium text-green-500 italic">
+          Premium Collection
+        </span>
       </div>
 
       {/* Banner */}
@@ -122,7 +148,9 @@ export default function NewIphones() {
           src={pageBanner}
           alt="iPhone Banner"
           className="w-full h-[450px] object-cover transition-transform duration-700 hover:scale-105"
-          onError={(e) => { e.currentTarget.src = FallbackImg; }}
+          onError={(e) => {
+            e.currentTarget.src = FallbackImg;
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
       </div>
@@ -130,7 +158,11 @@ export default function NewIphones() {
       {/* Filters Row */}
       <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
         <div className="flex items-center gap-3">
-          <select value={badgeFilter} onChange={(e) => setBadgeFilter(e.target.value)} className="border rounded px-3 py-2">
+          <select
+            value={badgeFilter}
+            onChange={(e) => setBadgeFilter(e.target.value)}
+            className="border rounded px-3 py-2"
+          >
             <option>All</option>
             <option>HOT</option>
             <option>NEW</option>
@@ -147,7 +179,11 @@ export default function NewIphones() {
         </div>
 
         <div className="flex items-center gap-3">
-          <select value={ordering} onChange={(e) => setOrdering(e.target.value)} className="border rounded px-3 py-2">
+          <select
+            value={ordering}
+            onChange={(e) => setOrdering(e.target.value)}
+            className="border rounded px-3 py-2"
+          >
             <option value="">Default order</option>
             <option value="-created_at">Newest</option>
             <option value="new_price_ksh">Price (low → high)</option>
@@ -159,87 +195,131 @@ export default function NewIphones() {
 
       {/* Results summary */}
       <div className="text-center mb-6 text-sm text-gray-600">
-        {items.length === 0 ? "No iPhones found." : count !== null ? `Showing ${items.length} of ${count}` : `Showing ${items.length}`}
+        {items.length === 0
+          ? "No iPhones found."
+          : count !== null
+          ? `Showing ${items.length} of ${count}`
+          : `Showing ${items.length}`}
       </div>
 
       {/* Products Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8">
         {items.map((product) => {
           const isAdding = !!addingMap[product.id];
-          return (
-            <div key={product.id} className="group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-200 hover:-translate-y-1 relative">
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-tr from-yellow-400 via-yellow-200 to-transparent pointer-events-none"></div>
 
+          return (
+            <div
+              key={product.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => goToDetail(product.id)}
+              onKeyDown={(e) => handleCardKeyDown(e, product.id)}
+              className="group bg-white rounded-xl shadow hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200 hover:-translate-y-0.5 relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              aria-label={`View details for ${product.name}`}
+            >
               <div className="relative overflow-hidden">
                 {product.badge && product.badge !== "NONE" && (
-                  <span className={`absolute top-3 left-3 text-xs font-bold px-3 py-1 rounded-full shadow-md ${
-                    product.badge === "SALE" ? "bg-red-500 text-white" :
-                    product.badge === "NEW" ? "bg-blue-500 text-white" : "bg-green-500 text-white"
-                  }`}>
+                  <span
+                    className={`absolute top-3 left-3 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow ${
+                      product.badge === "SALE"
+                        ? "bg-red-500 text-white"
+                        : product.badge === "NEW"
+                        ? "bg-blue-600 text-white"
+                        : "bg-green-600 text-white"
+                    }`}
+                  >
                     {product.badge}
                   </span>
                 )}
 
                 <button
-                  onClick={() => toggleWishlist(product.id)}
-                  className="absolute top-3 right-3 bg-white/90 p-2 rounded-full shadow hover:scale-110 transition"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleWishlist(product.id);
+                  }}
+                  className="absolute top-3 right-3 bg-white/95 p-2 rounded-full shadow hover:scale-110 transition"
+                  aria-label={
+                    wishlist.includes(product.id)
+                      ? "Remove from wishlist"
+                      : "Add to wishlist"
+                  }
                 >
                   <Heart
                     size={18}
-                    className={wishlist.includes(product.id) ? "fill-red-500 text-red-500" : "text-gray-600"}
+                    className={
+                      wishlist.includes(product.id)
+                        ? "fill-red-500 text-red-500"
+                        : "text-gray-600"
+                    }
                   />
                 </button>
 
                 <img
                   src={product.image || FallbackImg}
                   alt={product.name}
-                  className="w-full h-[300px] md:h-[350px] object-contain bg-white group-hover:scale-105 transition-transform duration-500"
-                  onError={(e) => { e.currentTarget.src = FallbackImg; }}
+                  className="w-full h-[280px] md:h-[320px] object-contain bg-white group-hover:scale-105 transition-transform duration-200"
+                  onError={(e) => {
+                    e.currentTarget.src = FallbackImg;
+                  }}
                 />
               </div>
 
               <div className="p-5 relative z-10 bg-white">
-                <h3 className="text-base font-semibold text-gray-900 group-hover:text-black/80 transition">{product.name}</h3>
+                <h3 className="text-[15px] font-semibold text-gray-900 group-hover:text-gray-700 transition">
+                  {product.name}
+                </h3>
 
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-lg text-black font-bold">KSh {product.new_price_ksh?.toLocaleString()}</span>
+                  <span className="text-base text-black font-semibold">
+                    KSh {product.new_price_ksh?.toLocaleString()}
+                  </span>
                   {product.old_price_ksh ? (
-                    <span className="text-gray-400 line-through text-sm">KSh {product.old_price_ksh?.toLocaleString()}</span>
+                    <span className="text-gray-400 line-through text-xs">
+                      KSh {product.old_price_ksh?.toLocaleString()}
+                    </span>
                   ) : null}
                 </div>
 
                 <div className="text-green-600 text-xs mt-1">
                   Save{" "}
                   {product.old_price_ksh
-                    ? Math.round(((product.old_price_ksh - product.new_price_ksh) / product.old_price_ksh) * 100)
+                    ? Math.round(
+                        ((product.old_price_ksh - product.new_price_ksh) /
+                          product.old_price_ksh) *
+                          100
+                      )
                     : 0}
                   %
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-2">
+                {/* Slim, stacked buttons */}
+                <div className="mt-4 flex flex-col gap-2">
                   <button
-                    className="inline-flex items-center justify-center rounded-xl border bg-white hover:bg-gray-50 text-gray-900 py-2 px-3 transition"
-                    onClick={() => navigate(`/new-iphones/${product.id}`)}
+                    className="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-900 py-2 px-3 text-sm font-medium transition"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goToDetail(product.id);
+                    }}
                   >
                     View Details
                   </button>
 
                   <button
-                    className={`inline-flex items-center justify-center rounded-xl py-2 px-3 transition ${
+                    className={`w-full inline-flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition ${
                       product.product_id
                         ? isAdding
                           ? "bg-blue-600 text-white opacity-70 cursor-wait"
                           : "bg-blue-600 hover:bg-blue-700 text-white"
                         : "bg-gray-200 text-gray-500 cursor-not-allowed"
                     }`}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (!product.product_id || isAdding) return;
                       handleBuyNow(product);
                     }}
                     disabled={!product.product_id || isAdding}
-                    title={product.product_id ? "Add to cart" : "Unavailable"}
                   >
-                    {isAdding ? "Adding…" : <><ShoppingCart size={16} /> Add to Cart</>}
+                    {isAdding ? "Adding…" : (<><ShoppingCart size={15} /> Add to Cart</>)}
                   </button>
                 </div>
               </div>
@@ -255,7 +335,9 @@ export default function NewIphones() {
             disabled={!previous || page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             className={`px-4 py-2 rounded ${
-              previous && page > 1 ? "bg-gray-200 hover:bg-gray-300" : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              previous && page > 1
+                ? "bg-gray-200 hover:bg-gray-300"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"
             }`}
           >
             ← Previous
@@ -264,7 +346,11 @@ export default function NewIphones() {
           <button
             disabled={!next}
             onClick={() => setPage((p) => p + 1)}
-            className={`px-4 py-2 rounded ${next ? "bg-gray-200 hover:bg-gray-300" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+            className={`px-4 py-2 rounded ${
+              next
+                ? "bg-gray-200 hover:bg-gray-300"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
           >
             Next →
           </button>

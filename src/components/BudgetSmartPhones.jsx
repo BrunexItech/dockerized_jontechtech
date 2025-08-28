@@ -55,7 +55,10 @@ export default function BudgetSmartphoneDeals() {
           setNext(null);
           setPrevious(null);
           console.error("Failed to load budget smartphones:", e);
-          toast.error(e?.message || "Failed to load budget smartphones");
+          toast.error(e?.message || "Failed to load budget smartphones", {
+            autoClose: 1500,
+            position: "top-center",
+          });
         }
       }
     }
@@ -70,7 +73,10 @@ export default function BudgetSmartphoneDeals() {
 
   const handleBuyNow = async (phone) => {
     if (!phone?.product_id) {
-      toast.error("This item is not available for purchase yet.");
+      toast.error("This item is not available for purchase yet.", {
+        autoClose: 1500,
+        position: "top-center",
+      });
       return;
     }
     const id = phone.id;
@@ -79,9 +85,15 @@ export default function BudgetSmartphoneDeals() {
       const updated = await api.cart.add(phone.product_id, 1);
       const cnt = (updated.items || []).reduce((acc, i) => acc + (i.quantity || 0), 0);
       window.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: cnt } }));
-      toast.success(`${phone.name} added to cart`);
+      toast.success(`${phone.name} added to cart`, {
+        autoClose: 1500,
+        position: "top-center",
+      });
     } catch (e) {
-      toast.error(e?.message || "Failed to add to cart");
+      toast.error(e?.message || "Failed to add to cart", {
+        autoClose: 1500,
+        position: "top-center",
+      });
     } finally {
       setAddingMap((m) => {
         const copy = { ...m };
@@ -134,12 +146,26 @@ export default function BudgetSmartphoneDeals() {
         {(items.length ? items : skeleton).map((p, idx) => {
           const k = p?.id ?? `s-${idx}`;
           const isAdding = !!addingMap[p?.id];
+          const clickable = !!p?.id;
 
-          // Keep your original card styles
           return (
             <div
               key={k}
-              className="relative border border-gray-300 rounded-lg p-3 pt-8 flex flex-col items-center group shadow-sm hover:shadow-lg hover:border-blue-500 transition-all duration-300 ease-in-out transform hover:-translate-y-2 bg-white"
+              className={[
+                "relative border border-gray-300 rounded-lg p-3 pt-8 flex flex-col items-center group shadow-sm hover:shadow-lg hover:border-blue-500 transition-all duration-300 ease-in-out transform hover:-translate-y-2 bg-white",
+                clickable ? "cursor-pointer" : "cursor-default"
+              ].join(" ")}
+              onClick={() => clickable && navigate(`/budget-smartphones/${p.id}`)}
+              onKeyDown={(e) => {
+                if (!clickable) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(`/budget-smartphones/${p.id}`);
+                }
+              }}
+              role={clickable ? "button" : undefined}
+              tabIndex={clickable ? 0 : -1}
+              aria-label={clickable ? `View details for ${p?.name ?? "item"}` : undefined}
             >
               {/* Badge */}
               {p?.badge && (
@@ -184,10 +210,14 @@ export default function BudgetSmartphoneDeals() {
                 ) : null}
               </div>
 
-              {/* Actions */}
-              <div className="mt-3 grid grid-cols-2 gap-2 w-full">
+              {/* Actions (stacked on mobile, side-by-side from sm+) */}
+              <div
+                className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* View Details - outline style, slim on mobile */}
                 <button
-                  className="inline-flex items-center justify-center rounded-md border bg-white hover:bg-gray-50 text-gray-900 py-1.5 px-2 text-sm transition"
+                  className="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 px-3 py-1.5 text-sm md:py-2 font-medium shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
                   onClick={() => p?.id && navigate(`/budget-smartphones/${p.id}`)}
                   disabled={!p?.id}
                   title="View Details"
@@ -195,8 +225,9 @@ export default function BudgetSmartphoneDeals() {
                   View Details
                 </button>
 
+                {/* Buy Now - primary style, slim on mobile */}
                 <button
-                  className={`inline-flex items-center justify-center rounded-md py-1.5 px-2 text-sm transition ${
+                  className={`w-full inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm md:py-2 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition ${
                     p?.product_id
                       ? isAdding
                         ? "bg-blue-600 text-white opacity-70 cursor-wait"

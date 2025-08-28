@@ -35,12 +35,20 @@ import OrderConfirmation from './components/OrderConfirmation'
 import ForgotPassword from './components/ForgotPassword'
 import ResetPassword from './components/ResetPassword'
 import SearchResults from './components/SearchResults'
+import ScrollToTop from './components/ScrollToTop'
 
 const App = () => {
   return (
-      <Router>
-        <Header/>
+    <Router>
+      {/* Mount this globally so it runs on every route change */}
+      <ScrollToTop />
+
+      <Header/>
+
+      {/* Optional: wrap routes in a main region */}
+      <main>
         <Routes>
+          {/* Removed the /scroll route; not needed */}
           <Route path='/' element={<Home/>}/>
           <Route path='/laptops' element={<LaptopPage/>}/>
           <Route path='/storage/:id' element={<StorageDetail/>}/>    
@@ -74,8 +82,10 @@ const App = () => {
           <Route path="/reset-password"  element={<ResetPassword />} />
           <Route path="/search" element={<SearchResults />} />
         </Routes>
-        <Footer/>
-      </Router>
+      </main>
+
+      <Footer/>
+    </Router>
   )
 }
 

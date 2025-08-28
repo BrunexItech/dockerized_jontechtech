@@ -1,7 +1,9 @@
 // src/api.js
 // Single source of truth for API calls in Vite
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const rawBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// normalize trailing slash off base URL
+const API_URL = rawBase.replace(/\/+$/, "");
 
 /* ------------------------- Token storage helpers ------------------------- */
 export function setTokens({ access, refresh, user } = {}) {
@@ -35,7 +37,6 @@ export function clearAuth() {
 function firstMessage(payload) {
   if (!payload) return "Request failed.";
   if (typeof payload === "string") {
-    // Custom replacement for DRF's default message
     if (payload === "Authentication credentials were not provided.") {
       return "Please login or Sign up to make a purchase";
     }
@@ -60,8 +61,14 @@ function qs(params = {}) {
 }
 
 /* ------------------------------- Core fetch ------------------------------- */
+function join(urlBase, path) {
+  // ensure path starts with a single slash
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${urlBase}${p}`;
+}
+
 export async function request(path, { method = "GET", body, headers } = {}) {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(join(API_URL, path), {
     method,
     headers: { "Content-Type": "application/json", ...(headers || {}) },
     body: body ? JSON.stringify(body) : undefined,
@@ -78,7 +85,7 @@ export async function request(path, { method = "GET", body, headers } = {}) {
 
 export async function authRequest(path, { method = "GET", body, headers } = {}) {
   const token = getAccessToken();
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(join(API_URL, path), {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -325,7 +332,6 @@ export const api = {
       return authRequest(`/api/orders/${id}/email-receipt/`, { method: "POST" });
     },
     downloadUrl(id) {
-      // You can use this if you want to construct a URL without a prior status call
       return `${API_URL}/api/orders/${id}/receipt/download/`;
     },
   },

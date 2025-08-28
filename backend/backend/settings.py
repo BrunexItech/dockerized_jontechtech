@@ -22,6 +22,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -33,10 +34,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "backend.urls"
 
-# Templates: support app templates AND a global templates/ folder (for receipts)
+# Templates: keep for admin and any Django-rendered pages you might add later
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates",
-    "DIRS": [BASE_DIR / "templates"],  # templates/receipts/receipt.html will be found
+    "DIRS": [
+        BASE_DIR / "templates",
+    ],
     "APP_DIRS": True,
     "OPTIONS": {"context_processors": [
         "django.template.context_processors.debug",
@@ -75,7 +78,17 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+# --- Static & Media ---
+STATIC_URL = "/static/"
+# No longer pulling in Vite build output here
+STATICFILES_DIRS = [
+    # Keep only if you have your own Django static assets under /static
+    # BASE_DIR / "static",
+]
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # --- DRF / Auth ---
 REST_FRAMEWORK = {
@@ -84,55 +97,48 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {"AUTH_HEADER_TYPES": ("Bearer",)}
 AUTH_USER_MODEL = "authapp.User"
 
-# --- Media (for saving PDF receipts) ---
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
 # --- Frontend origin (CORS/CSRF) ---
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
-# --- CORS / CSRF ---
+# CORS: permissive in DEBUG; restrict in production to FRONTEND_URL
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     CORS_ALLOW_ALL_ORIGINS = False
+
 CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
+
+# CSRF is not required for JWT; harmless to keep if you also do cookie auth elsewhere.
 CSRF_TRUSTED_ORIGINS = [FRONTEND_URL]
 
 # --- Email ---
-# Use .env override if provided; else console in DEBUG, SMTP in production.
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND") or (
     "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend"
 )
-
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 
-# Make timeout configurable. "0" (or empty) → None (Django default: no timeout)
 EMAIL_TIMEOUT = os.getenv("EMAIL_TIMEOUT", "").strip()
 EMAIL_TIMEOUT = (int(EMAIL_TIMEOUT) if EMAIL_TIMEOUT.isdigit() else 0) or None
 
-# DEFAULT_FROM_EMAIL may be quoted in .env; strip quotes if present
 _default_from = (os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER) or "").strip()
 if _default_from.startswith('"') and _default_from.endswith('"'):
     _default_from = _default_from[1:-1]
 DEFAULT_FROM_EMAIL = _default_from or EMAIL_HOST_USER
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 
-# --- Password reset window (seconds) ---
 PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT", "3600"))
 
-# --- Logging (show SMTP/template/xhtml2pdf errors clearly) ---
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": "INFO"},
     "loggers": {
-        "products": {"handlers": ["console"], "level": "DEBUG"},  # receipts & email debug
+        "products": {"handlers": ["console"], "level": "DEBUG"},
         "django.request": {"handlers": ["console"], "level": "INFO"},
     },
 }

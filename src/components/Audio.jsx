@@ -110,6 +110,15 @@ export default function Audio() {
     }
   };
 
+  // Card navigation helpers
+  const goToDetails = (id) => navigate(`/audio/${id}`);
+  const onCardKey = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToDetails(id);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Page Title */}
@@ -188,7 +197,12 @@ export default function Audio() {
               return (
                 <div
                   key={a.id}
-                  className="group flex flex-col bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View details for ${a.name}`}
+                  onClick={() => goToDetails(a.id)}
+                  onKeyDown={(e) => onCardKey(e, a.id)}
+                  className="group flex flex-col bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
                 >
                   <div className="relative">
                     <div className="h-56 w-full overflow-hidden rounded-t-2xl bg-white flex items-center justify-center">
@@ -213,7 +227,10 @@ export default function Audio() {
                     <div className="mt-auto grid grid-cols-2 gap-2">
                       <button
                         className="inline-flex items-center justify-center rounded-xl border bg-white hover:bg-gray-50 text-gray-900 py-2 px-3 transition"
-                        onClick={() => navigate(`/audio/${a.id}`)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // prevent card click
+                          goToDetails(a.id);
+                        }}
                       >
                         View Details
                       </button>
@@ -226,7 +243,8 @@ export default function Audio() {
                               : "bg-blue-600 hover:bg-blue-700 text-white"
                             : "bg-gray-200 text-gray-500 cursor-not-allowed"
                         }`}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation(); // prevent card click
                           if (!a.product_id || isAdding) return;
                           handleBuyNow(a);
                         }}

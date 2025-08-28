@@ -18,7 +18,7 @@ const LoginForm = ({ onSuccess }) => {
     if (!email || !password) {
       const msg = "Please enter your email and password.";
       setError(msg);
-      toast.error(msg);
+      toast.error(msg, { autoClose: 1500, position: "top-center" }); // 👈 Changed
       return;
     }
 
@@ -27,7 +27,7 @@ const LoginForm = ({ onSuccess }) => {
 
     try {
       const data = await api.login({ email, password });
-      toast.success("Login successful!");
+      toast.success("Login successful!", { autoClose: 1500, position: "top-center" }); // 👈 Changed
       onSuccess?.(data);
       navigate("/");
     } catch (err) {
@@ -36,7 +36,7 @@ const LoginForm = ({ onSuccess }) => {
         err?.message ||
         "Invalid credentials. Please try again.";
       setError(msg);
-      toast.error(msg);
+      toast.error(msg, { autoClose: 1500, position: "top-center" }); // 👈 Changed
     } finally {
       setLoading(false);
     }

@@ -115,6 +115,25 @@ export default function Televisions() {
     }
   };
 
+  // Helper: navigate to detail and scroll to top for nicer UX
+  const goToDetail = (id) => {
+    try {
+      (document.scrollingElement || document.documentElement || document.body)?.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    } catch {}
+    navigate(`/televisions/${id}`);
+  };
+
+  // Keyboard support for full-card click
+  const handleCardKeyDown = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToDetail(id);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Page Title */}
@@ -226,7 +245,12 @@ export default function Televisions() {
               return (
                 <div
                   key={tv.id}
-                  className="group flex flex-col bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-lg transition-shadow overflow-hidden"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goToDetail(tv.id)}
+                  onKeyDown={(e) => handleCardKeyDown(e, tv.id)}
+                  className="group flex flex-col bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-lg transition-shadow overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                  aria-label={`View details for ${tv.name}`}
                 >
                   {/* Subtle gradient header bar */}
                   <div className="h-1.5 bg-gradient-to-r from-blue-500/70 via-indigo-500/70 to-purple-500/70" />
@@ -270,7 +294,7 @@ export default function Televisions() {
                     <div className="mt-auto grid grid-cols-1 gap-2">
                       <button
                         className="inline-flex items-center justify-center rounded-xl border bg-white hover:bg-gray-50 text-gray-900 py-2 px-3 transition"
-                        onClick={() => navigate(`/televisions/${tv.id}`)}
+                        onClick={(e) => { e.stopPropagation(); goToDetail(tv.id); }}
                       >
                         View Details
                       </button>
@@ -283,7 +307,8 @@ export default function Televisions() {
                               : "bg-indigo-600 hover:bg-indigo-700 text-white"
                             : "bg-gray-200 text-gray-500 cursor-not-allowed"
                         }`}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (!tv.product_id || isAdding) return;
                           handleBuyNow(tv);
                         }}

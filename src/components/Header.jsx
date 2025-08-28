@@ -151,7 +151,8 @@ const Header = () => {
   };
 
   return (
-    <header className="w-full shadow-sm border-b">
+    // 👇 Made sticky on both desktop & mobile; z-40 keeps it above content (overlay is z-50)
+    <header className="sticky top-0 z-40 w-full shadow-sm border-b bg-white">
       {/* Desktop Header */}
       <div className="hidden md:flex container mx-auto px-3 pt-1 pb-0 items-center justify-between bg-white">
         <img src={logo} alt="Jontech logo" className="h-40 w-auto" />

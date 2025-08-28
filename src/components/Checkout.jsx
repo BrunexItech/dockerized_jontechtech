@@ -56,7 +56,6 @@ export default function Checkout() {
     setter((prev) => ({ ...prev, [name]: value }));
   };
 
-  // --- Normalizers ensure backend gets snake_case keys it expects
   const normalizeShipping = (s) => ({
     full_name: (s.full_name ?? s.fullName ?? "").trim(),
     phone: (s.phone ?? s.phoneNumber ?? "").trim(),
@@ -87,7 +86,6 @@ export default function Checkout() {
   const placeOrder = async () => {
     if (placing) return;
 
-    // Normalize before validation/sending
     const s = normalizeShipping(shipping);
     const b = normalizeBilling(billing);
 
@@ -95,10 +93,8 @@ export default function Checkout() {
 
     setPlacing(true);
     try {
-      // Validate cart (stock/price) on server
       await api.checkout.validate();
 
-      // Create order
       const order = await api.checkout.create({
         shipping: s,
         billing: b,
@@ -141,18 +137,25 @@ export default function Checkout() {
           {/* Payment */}
           <div className="bg-white rounded-xl shadow p-4">
             <h2 className="font-semibold text-lg mb-3">Payment</h2>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="flex items-center gap-2">
                 <input type="radio" name="pm" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} />
                 <span>Cash on Delivery</span>
               </label>
-              <label className="flex items-center gap-2">
+
+              <label className="flex items-start gap-2">
                 <input type="radio" name="pm" checked={paymentMethod === "mpesa"} onChange={() => setPaymentMethod("mpesa")} />
-                <span>Mpesa (integrate later)</span>
+                <div className="flex flex-col">
+                  <span className="font-medium">Mpesa</span>
+                  <span className="text-sm text-gray-600 bg-green-50 border border-green-200 rounded px-3 py-1 mt-1">
+                    Paybill: <strong>542542</strong> &nbsp; | &nbsp; Acc No: <strong>952994</strong>
+                  </span>
+                </div>
               </label>
+
               <label className="flex items-center gap-2">
                 <input type="radio" name="pm" checked={paymentMethod === "card"} onChange={() => setPaymentMethod("card")} />
-                <span>Card (Stripe/Flutterwave later)</span>
+                <span>Card (Stripe/Flutterwave)</span>
               </label>
             </div>
 

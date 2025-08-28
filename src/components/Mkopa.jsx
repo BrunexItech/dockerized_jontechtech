@@ -97,10 +97,27 @@ export default function Mkopa() {
     }
   };
 
+  // helper: go to details and scroll to top for nicer UX
+  const goToDetail = (id) => {
+    try {
+      (document.scrollingElement || document.documentElement || document.body)
+        ?.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {}
+    navigate(`/mkopa/${id}`);
+  };
+
+  // keyboard support for full-card click
+  const handleCardKeyDown = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToDetail(id);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Page Title */}
-      <h1 className="text-3xl font-bold mb-2 text-center">M‑KOPA Phones in Kenya (2025)</h1>
+      <h1 className="text-3xl font-bold mb-2 text-center">M-KOPA Phones in Kenya (2025)</h1>
       <p className="text-center text-gray-600 mb-6">
         Small deposit today. Easy weekly payments. Take it home now.
       </p>
@@ -163,7 +180,7 @@ export default function Mkopa() {
 
       {/* Results summary */}
       <div className="text-center mb-6 text-sm text-gray-600">
-        {items.length === 0 ? "No M‑KOPA items found." : count !== null ? `Showing ${items.length} of ${count}` : `Showing ${items.length}`}
+        {items.length === 0 ? "No M-KOPA items found." : count !== null ? `Showing ${items.length} of ${count}` : `Showing ${items.length}`}
       </div>
 
       {/* Category Sections */}
@@ -177,7 +194,12 @@ export default function Mkopa() {
               return (
                 <div
                   key={o.id}
-                  className="group flex flex-col bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goToDetail(o.id)}
+                  onKeyDown={(e) => handleCardKeyDown(e, o.id)}
+                  className="group flex flex-col bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
+                  aria-label={`View details for ${o.name}`}
                 >
                   <div className="relative">
                     <div className="h-56 w-full overflow-hidden rounded-t-2xl bg-white flex items-center justify-center">
@@ -205,7 +227,7 @@ export default function Mkopa() {
                     <div className="mt-auto grid grid-cols-2 gap-2">
                       <button
                         className="inline-flex items-center justify-center rounded-xl border bg-white hover:bg-gray-50 text-gray-900 py-2 px-3 transition"
-                        onClick={() => navigate(`/mkopa/${o.id}`)}
+                        onClick={(e) => { e.stopPropagation(); goToDetail(o.id); }}
                       >
                         View Details
                       </button>
@@ -218,7 +240,11 @@ export default function Mkopa() {
                               : "bg-green-600 hover:bg-green-700 text-white"
                             : "bg-gray-200 text-gray-500 cursor-not-allowed"
                         }`}
-                        onClick={() => { if (!o.product_id || isAdding) return; handleBuyNow(o); }}
+                        onClick={(e) => { 
+                          e.stopPropagation();
+                          if (!o.product_id || isAdding) return; 
+                          handleBuyNow(o); 
+                        }}
                         disabled={!o.product_id || isAdding}
                         title={o.product_id ? "Add to cart" : "Unavailable"}
                       >

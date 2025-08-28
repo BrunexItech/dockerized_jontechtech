@@ -1,423 +1,381 @@
-import React, { useEffect, useRef, useState } from "react";
-import { MdHeadsetMic } from "react-icons/md";
-import { BsCart3 } from "react-icons/bs";
-import { FaRegUser } from "react-icons/fa";
-import { AiOutlineSearch } from "react-icons/ai";
-import { GiHamburgerMenu } from "react-icons/gi";
-import { Link, useNavigate } from "react-router-dom";
-import logo from "../assets/logo.svg";
-import { getAccessToken, getUser, clearAuth } from "../api";
-import api from "../api";
 
-const Header = () => {
-  const navigate = useNavigate();
 
-  // UI state (mobile menu/search)
-  const [mobile, setMobile] = useState({ menuOpen: false, searchOpen: false });
 
-  // Auth state
-  const [isAuthed, setIsAuthed] = useState(Boolean(getAccessToken()));
-  const [user, setUser] = useState(getUser());
 
-  // Cart state
-  const [cartCount, setCartCount] = useState(0);
 
-  // Refs
-  const mobileSearchRef = useRef(null);
-  const mobileSearchInputRef = useRef(null);
-  const mobileMenuPanelRef = useRef(null);
-  const firstMenuLinkRef = useRef(null);
 
-  // Fetch cart items
-  const fetchCartCount = async () => {
-    if (!isAuthed) return setCartCount(0);
-    try {
-      const data = await api.cart.get();
-      const totalItems = (data.items || []).reduce((acc, item) => acc + item.quantity, 0);
-      setCartCount(totalItems);
-    } catch (err) {
-      console.error("Error fetching cart:", err);
-      setCartCount(0);
+
+
+
+
+
+
+
+
+
+
+// src/api.js
+// Single source of truth for API calls in Vite/React.
+
+function getBaseUrl() {
+  // Prefer explicit env if provided; strip trailing slash
+  let envUrl = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+  // If empty -> SAME ORIGIN (best for ngrok/mobile)
+  return envUrl; // "" means same-origin
+}
+
+/* ------------------------- Token storage helpers ------------------------- */
+export function setTokens({ access, refresh, user } = {}) {
+  if (access) localStorage.setItem("access", access);
+  if (refresh) localStorage.setItem("refresh", refresh);
+  if (user) localStorage.setItem("user", JSON.stringify(user));
+  window.dispatchEvent(new Event("auth-changed"));
+}
+
+export function getAccessToken() {
+  return localStorage.getItem("access");
+}
+
+export function getUser() {
+  const raw = localStorage.getItem("user");
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearAuth() {
+  localStorage.removeItem("access");
+  localStorage.removeItem("refresh");
+  localStorage.removeItem("user");
+  window.dispatchEvent(new Event("auth-changed"));
+}
+
+/* ------------------------------ Error helper ----------------------------- */
+function firstMessage(payload) {
+  if (!payload) return "Request failed.";
+  if (typeof payload === "string") {
+    if (payload === "Authentication credentials were not provided.") {
+      return "Please login or Sign up to make a purchase";
     }
-  };
+    return payload;
+  }
+  if (Array.isArray(payload)) return payload.length ? firstMessage(payload[0]) : "Request failed.";
+  if (payload.detail) return firstMessage(payload.detail);
+  const k = Object.keys(payload)[0];
+  return k ? firstMessage(payload[k]) : "Request failed.";
+}
 
-  useEffect(() => {
-    fetchCartCount();
-  }, [isAuthed]);
+/* --------------------------- Query string helper -------------------------- */
+function qs(params = {}) {
+  const u = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    const s = String(v).trim();
+    if (s !== "") u.set(k, s);
+  });
+  const s = u.toString();
+  return s ? `?${s}` : "";
+}
 
-  // Sync auth from localStorage + custom event
-  useEffect(() => {
-    const sync = () => {
-      setIsAuthed(Boolean(getAccessToken()));
-      setUser(getUser());
-      fetchCartCount();
-    };
-    sync();
-    window.addEventListener("auth-changed", sync);
+/* ------------------------------- Core fetch ------------------------------- */
+async function coreFetch(path, { method = "GET", body, headers } = {}, auth = false) {
+  const base = getBaseUrl(); // "" or absolute https://...
+  const url = `${base}${path}`; // if base="" -> same-origin
 
-    // NEW: react to immediate cart updates from other pages
-    const onCartUpdated = (e) => {
-      const count = e?.detail?.count;
-      if (typeof count === "number") {
-        setCartCount(count);
-      } else {
-        // fallback: if event didn't include a count, refetch
-        fetchCartCount();
-      }
-    };
-    window.addEventListener("cart-updated", onCartUpdated);
+  const h = { "Content-Type": "application/json", ...(headers || {}) };
+  if (auth) {
+    const token = getAccessToken();
+    if (token) h.Authorization = `Bearer ${token}`;
+  }
 
-    return () => {
-      window.removeEventListener("auth-changed", sync);
-      window.removeEventListener("cart-updated", onCartUpdated);
-    };
-  }, []);
+  const res = await fetch(url, {
+    method,
+    headers: h,
+    body: body ? JSON.stringify(body) : undefined,
+    // If you ever switch to cookie-based sessions, add:
+    // credentials: "include",
+  });
 
-  // Auto-focus the mobile search input when opened
-  useEffect(() => {
-    if (mobile.searchOpen && mobileSearchInputRef.current) {
-      mobileSearchInputRef.current.focus();
-    }
-  }, [mobile.searchOpen]);
+  let data = null;
+  try { data = await res.json(); } catch {}
 
-  // Prevent body scroll when mobile menu is open + focus first link
-  useEffect(() => {
-    if (mobile.menuOpen) {
-      document.body.style.overflow = "hidden";
-      setTimeout(() => firstMenuLinkRef.current?.focus(), 50);
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [mobile.menuOpen]);
+  if (!res.ok) throw new Error(firstMessage(data) || `HTTP ${res.status}`);
+  return data;
+}
 
-  const handleLogout = () => {
-    clearAuth();
-    navigate("/");
-  };
+export function request(path, opts = {}) {
+  return coreFetch(path, opts, false);
+}
+export function authRequest(path, opts = {}) {
+  return coreFetch(path, opts, true);
+}
 
-  const handleMenuLinkClick = (to) => {
-    setMobile((m) => ({ ...m, menuOpen: false }));
-    navigate(to);
-  };
+/* --------------------------------- API ----------------------------------- */
+export const api = {
+  /* ------------------------------- Auth ------------------------------- */
+  register(payload) {
+    return request("/api/auth/register/", { method: "POST", body: payload });
+  },
 
-  return (
-    <header className="w-full shadow-sm border-b">
-      {/* Desktop Header */}
-      <div className="hidden md:flex container mx-auto px-3 pt-1 pb-0 items-center justify-between bg-white">
-        <img src={logo} alt="Jontech logo" className="h-40 w-auto" />
+  async login({ email, password }) {
+    const data = await request("/api/auth/login/", {
+      method: "POST",
+      body: { email, password },
+    });
+    setTokens({ access: data.access, refresh: data.refresh, user: data.user });
+    return data;
+  },
 
-        {/* Search Bar */}
-        <div className="flex flex-1 max-w-2xl mx-8">
-          <select className="border border-blue-700 text-sm py-2 rounded-l-md focus:outline-none">
-            <option>All Categories</option>
-            <option>Smartphones</option>
-            <option>Airpods</option>
-            <option>Headphones</option>
-            <option>Chargers</option>
-            <option>Television</option>
-            <option>Screen Protectors</option>
-            <option>Phone Covers</option>
-            <option>Speakers</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Search for products..."
-            className="flex-1 border-t border-b border-blue-600 px-4 py-2 focus:outline-none"
-          />
-          <button className="bg-blue-700 text-white px-4 py-2 rounded-r-md hover:bg-blue-800 transition">
-            Search
-          </button>
-        </div>
+  me() {
+    return authRequest("/api/auth/me/");
+  },
 
-        {/* Top right area (Help, Account, Cart) */}
-        <div className="flex items-center space-x-6 text-sm">
-          {/* Help */}
-          <div className="flex items-center space-x-2">
-            <MdHeadsetMic className="text-2xl text-blue-600" />
-            <div>
-              <p className="text-gray-500">Need Help?</p>
-              <p className="text-blue-600 font-semibold">0795299451</p>
-            </div>
-          </div>
+  // Password reset
+  forgotPassword({ email }) {
+    return request("/api/auth/forgot-password/", { method: "POST", body: { email } });
+  },
 
-          {/* Account (Desktop) */}
-          <div className="flex items-center space-x-3">
-            <FaRegUser className="text-2xl" />
-            {isAuthed ? (
-              <div className="flex items-center gap-2">
-                <span className="hidden lg:inline text-gray-700">
-                  {user?.username ? `Hello, ${user.username}` : user?.email ? `Hello, ${user.email}` : "Account"}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigate("/login")}
-                  className="px-4 py-1.5 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50 transition"
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => navigate("/register")}
-                  className="px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-                >
-                  Sign up
-                </button>
-              </div>
-            )}
-          </div>
+  resetPassword({ uid, token, new_password }) {
+    return request("/api/auth/reset-password/", {
+      method: "POST",
+      body: { uid, token, new_password },
+    });
+  },
 
-          {/* Cart (Desktop) */}
-          <div className="relative cursor-pointer" onClick={() => navigate("/cart")}>
-            <div className="relative pr-1 flex items-center space-x-2 hover:text-blue-800 transition">
-              <BsCart3 className="text-2xl" />
-              {/* Always show a numeric badge, default 0 */}
-              <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 rounded-full">
-                {cartCount ?? 0}
-              </span>
-              <div className="text-sm pl-1 text-left">
-                <p className="text-gray-600">My Cart</p>
-                <p className="font-semibold">
-                  {cartCount ?? 0} {(cartCount ?? 0) === 1 ? "item" : "items"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+  /* ----------------------------- Products ----------------------------- */
+  products: {
+    list() {
+      return request("/api/products/");
+    },
+    get(id) {
+      return request(`/api/products/${id}/`);
+    },
+  },
 
-      {/* Desktop Navigation Menu */}
-      <nav className="hidden md:block w-full border-t shadow-sm bg-white">
-        <div className="container mx-auto px-4 py-2 flex flex-wrap gap-x-6">
-          <Link to="" className="text-gray-900 hover:text-blue-600 font-medium">
-            Home
-          </Link>
-          <Link to="/smartphones" className="text-gray-900 hover:text-blue-600 font-medium">
-            Smart Phones
-          </Link>
-          <Link to="/mkopa" className="text-gray-900 hover:text-blue-600 font-medium">
-            M-Kopa Phones
-          </Link>
-          <Link to="/televisions" className="text-gray-900 hover:text-blue-600 font-medium">
-            Televisions
-          </Link>
-          <Link to="/mobile-accessories" className="text-gray-900 hover:text-blue-600 font-medium">
-            Mobile Accessories
-          </Link>
+  /* ------------------------------- Cart ------------------------------- */
+  cart: {
+    get() {
+      return authRequest("/api/cart/");
+    },
+    add(productId, quantity = 1) {
+      return authRequest("/api/cart/add/", {
+        method: "POST",
+        body: { product_id: productId, quantity },
+      });
+    },
+    remove(productId) {
+      return authRequest("/api/cart/remove/", {
+        method: "POST",
+        body: { product_id: productId },
+      });
+    },
+    increment(productId) {
+      return authRequest("/api/cart/add/", {
+        method: "POST",
+        body: { product_id: productId, quantity: 1 },
+      });
+    },
+    decrement(productId) {
+      return authRequest("/api/cart/add/", {
+        method: "POST",
+        body: { product_id: productId, quantity: -1 },
+      });
+    },
+  },
 
-          <Link to="/reallaptops" className="text-gray-900 hover:text-blue-600 font-medium">
-            Laptops
-          </Link>
-          <Link to="/tablets" className="text-gray-900 hover:text-blue-600 font-medium">
-            Tablets
-          </Link>
-          <Link to="/audio" className="text-gray-900 hover:text-blue-600 font-medium">
-            Audio
-          </Link>
-          <Link to="/storage" className="text-gray-900 hover:text-blue-600 font-medium">
-            Storage Devices
-          </Link>
-        </div>
-      </nav>
+  /* ------------------------------ Tablets ---------------------------- */
+  tablets: {
+    list({ brand, search, ordering, page, page_size } = {}) {
+      return request(`/api/tablets/${qs({ brand, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/tablets/${id}/`);
+    },
+  },
 
-      {/* Mobile Header */}
-      <div className="md:hidden bg-gray-100 flex items-center justify-between px-4 py-2">
-        <img src={logo} alt="Jontech Logo" className="h-10" />
+  /* --------------------------- Reallaptops ---------------------------- */
+  reallaptops: {
+    list({ brand, search, ordering, page, page_size } = {}) {
+      return request(`/api/reallaptops/${qs({ brand, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/reallaptops/${id}/`);
+    },
+  },
 
-        <div className="flex items-center gap-4 text-xl">
-          {/* Search (Mobile) */}
-          <div className="flex items-center relative" ref={mobileSearchRef}>
-            <input
-              ref={mobileSearchInputRef}
-              type="text"
-              placeholder="Search..."
-              aria-hidden={!mobile.searchOpen}
-              className={[
-                "bg-white border border-gray-300 rounded px-3 py-1 text-sm",
-                "focus:outline-none focus:ring focus:border-blue-500",
-                "transition-all duration-300 ease-out overflow-hidden",
-                !mobile.searchOpen ? "w-0 opacity-0 pointer-events-none" : "w-36 opacity-100 mr-2",
-              ].join(" ")}
-            />
-            <button
-              aria-label="Toggle search"
-              aria-expanded={mobile.searchOpen}
-              className="cursor-pointer text-blue-500 ml-auto"
-              onClick={() => setMobile((m) => ({ ...m, searchOpen: !m.searchOpen }))}
-            >
-              <AiOutlineSearch />
-            </button>
-          </div>
+  /* ---------------------------- Smartphones --------------------------- */
+  smartphones: {
+    list({ brand, search, ordering, page, page_size } = {}) {
+      return request(`/api/smartphones/${qs({ brand, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/smartphones/${id}/`);
+    },
+  },
 
-          {/* Hamburger (opens nav) */}
-          <button
-            className="cursor-pointer text-blue-500"
-            aria-expanded={mobile.menuOpen}
-            aria-controls="mobile-nav"
-            onClick={() =>
-              setMobile((m) => ({
-                ...m,
-                menuOpen: !m.menuOpen,
-                searchOpen: false,
-              }))
-            }
-          >
-            <GiHamburgerMenu />
-          </button>
+  /* ------------------------------ Storages ---------------------------- */
+  storages: {
+    list({ brand, search, ordering, page, page_size } = {}) {
+      return request(`/api/storages/${qs({ brand, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/storages/${id}/`);
+    },
+  },
 
-          {/* Account (Mobile) */}
-          <button
-            className="cursor-pointer text-blue-500"
-            onClick={() => (isAuthed ? navigate("/") : navigate("/login"))}
-            aria-label="Account"
-            title={isAuthed ? (user?.username || user?.email || "Account") : "Login"}
-          >
-            <FaRegUser />
-          </button>
-          {isAuthed && (
-            <button
-              className="text-xs px-2 py-1 border rounded-lg border-gray-300 hover:bg-gray-50"
-              onClick={handleLogout}
-            >
-              Logout
-            </button>
-          )}
+  /* --------------------------- Audio Devices --------------------------- */
+  audio: {
+    list({ brand, category, search, ordering, page, page_size } = {}) {
+      return request(`/api/audio-devices/${qs({ brand, category, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/audio-devices/${id}/`);
+    },
+  },
 
-          {/* Cart (Mobile) */}
-          <div className="relative cursor-pointer" onClick={() => navigate("/cart")}>
-            <BsCart3 />
-            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 rounded-full">
-              {cartCount ?? 0}
-            </span>
-          </div>
-        </div>
-      </div>
+  /* ----------------------- Mobile Accessories ------------------------- */
+  accessories: {
+    list({ brand, category, search, ordering, page, page_size } = {}) {
+      return request(`/api/mobile-accessories/${qs({ brand, category, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/mobile-accessories/${id}/`);
+    },
+  },
 
-      {/* Mobile Navigation Menu */}
-      <div
-        className={[
-          "md:hidden fixed inset-0 z-50 transition-opacity duration-300",
-          mobile.menuOpen ? "bg-black/40 opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
-        ].join(" ")}
-        aria-hidden={!mobile.menuOpen}
-      >
-        <aside
-          ref={mobileMenuPanelRef}
-          role="dialog"
-          aria-modal="true"
-          className={[
-            "absolute right-0 top-0 h-full w-[85vw] max-w-sm bg-white shadow-xl",
-            "transition-transform duration-300 ease-out",
-            mobile.menuOpen ? "translate-x-0" : "translate-x-full",
-          ].join(" ")}
-        >
-          <div className="flex items-center justify-between px-5 py-4 border-b">
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="Jontech Logo" className="h-8" />
-              <span className="text-base font-semibold">Menu</span>
-            </div>
-            <button
-              className="text-gray-500 text-2xl leading-none hover:text-gray-700"
-              aria-label="Close menu"
-              onClick={() => setMobile((m) => ({ ...m, menuOpen: false }))}
-            >
-              ×
-            </button>
-          </div>
+  /* ----------------------------- Televisions --------------------------- */
+  televisions: {
+    list({ brand, panel, resolution, min_size, max_size, search, ordering, page, page_size } = {}) {
+      return request(
+        `/api/televisions/${qs({ brand, panel, resolution, min_size, max_size, search, ordering, page, page_size })}`
+      );
+    },
+    get(id) {
+      return request(`/api/televisions/${id}/`);
+    },
+  },
 
-          <nav id="mobile-nav" className="px-6 py-5 space-y-1 overflow-y-auto h-[calc(100%-56px)]">
-            <PanelLink to="" onSelect={handleMenuLinkClick} innerRef={firstMenuLinkRef}>
-              Home
-            </PanelLink>
-            <PanelLink to="/smartphones" onSelect={handleMenuLinkClick}>
-              Smart Phones
-            </PanelLink>
-            <PanelLink to="/mkopa" onSelect={handleMenuLinkClick}>
-              M-Kopa Phones
-            </PanelLink>
-            <PanelLink to="/televisions" onSelect={handleMenuLinkClick}>
-              Televisions
-            </PanelLink>
-            <PanelLink to="/mobile-accessories" onSelect={handleMenuLinkClick}>
-              Mobile Accessories
-            </PanelLink>
-            <Link to="/reallaptops" className="text-gray-900 hover:text-blue-600 font-medium">
-            Laptops
-          </Link>
-            <PanelLink to="/tablets" onSelect={handleMenuLinkClick}>
-              Tablets
-            </PanelLink>
-            <PanelLink to="/audio" onSelect={handleMenuLinkClick}>
-              Audio
-            </PanelLink>
-            <PanelLink to="/storage" onSelect={handleMenuLinkClick}>
-              Storage Devices
-            </PanelLink>
+  // M-KOPA
+  mkopa: {
+    list({ brand, category, search, ordering, page, page_size } = {}) {
+      return request(`/api/mkopa-items/${qs({ brand, category, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/mkopa-items/${id}/`);
+    },
+  },
 
-            {/* Auth shortcuts */}
-            <div className="mt-6 grid grid-cols-2 gap-2">
-              {isAuthed ? (
-                <>
-                  <button
-                    className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
-                    onClick={() => handleMenuLinkClick("/")}
-                  >
-                    Account
-                  </button>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                    onClick={handleLogout}
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    className="px-4 py-2 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50"
-                    onClick={() => handleMenuLinkClick("/login")}
-                  >
-                    Login
-                  </button>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-                    onClick={() => handleMenuLinkClick("/register")}
-                  >
-                    Sign up
-                  </button>
-                </>
-              )}
-            </div>
-          </nav>
-        </aside>
-      </div>
-    </header>
-  );
+  /* --------------------------- Latest Offers --------------------------- */
+  latestOffers: {
+    list({ brand, label, search, ordering, page, page_size } = {}) {
+      return request(`/api/latest-offers/${qs({ brand, label, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/latest-offers/${id}/`);
+    },
+  },
+
+  /* ---------------------- Budget Smartphones (NEW) --------------------- */
+  budgetSmartphones: {
+    list({ brand, badge, search, ordering, page, page_size } = {}) {
+      return request(`/api/budget-smartphones/${qs({ brand, badge, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/budget-smartphones/${id}/`);
+    },
+  },
+
+  /* --------------------------- Dial Phones --------------------------- */
+  dialPhones: {
+    list({ brand, badge, search, ordering, page, page_size } = {}) {
+      return request(`/api/dial-phones/${qs({ brand, badge, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/dial-phones/${id}/`);
+    },
+  },
+
+  /* --------------------------- New iPhones ---------------------------- */
+  newIphones: {
+    list({ badge, search, ordering, page, page_size } = {}) {
+      return request(`/api/new-iphones/${qs({ badge, search, ordering, page, page_size })}`);
+    },
+    get(id) {
+      return request(`/api/new-iphones/${id}/`);
+    },
+    banner() {
+      return request(`/api/new-iphones-banner/`);
+    },
+  },
+
+  /* ----------------------------- Hero Images ---------------------------- */
+  heroes: {
+    list() {
+      return request("/api/heroes/");
+    },
+  },
+
+  // CHECKOUT & ORDERS
+  checkout: {
+    validate() {
+      return authRequest("/api/checkout/validate/", { method: "POST" });
+    },
+    create({ shipping, billing, payment_method }) {
+      return authRequest("/api/checkout/", {
+        method: "POST",
+        body: { shipping, billing, payment_method },
+      });
+    },
+  },
+  orders: {
+    getById(id) {
+      return authRequest(`/api/orders/${id}/`);
+    },
+    receiptStatus(id) {
+      return authRequest(`/api/orders/${id}/receipt/`);
+    },
+    emailReceipt(id) {
+      return authRequest(`/api/orders/${id}/email-receipt/`, { method: "POST" });
+    },
+    downloadUrl(id) {
+      const base = getBaseUrl();
+      const prefix = base ? `${base}` : "";
+      return `${prefix}/api/orders/${id}/receipt/download/`;
+    },
+  },
+
+  /* ------------------------------- Search ------------------------------- */
+  search: {
+    async all(q, { limit = 8 } = {}) {
+      const [
+        smartphones, tablets, reallaptops, televisions, audio,
+        accessories, storages, mkopa, latestOffers,
+        budgetSmartphones, dialPhones, newIphones
+      ] = await Promise.all([
+        api.smartphones.list({ search: q, page_size: limit }),
+        api.tablets.list({ search: q, page_size: limit }),
+        api.reallaptops.list({ search: q, page_size: limit }),
+        api.televisions.list({ search: q, page_size: limit }),
+        api.audio.list({ search: q, page_size: limit }),
+        api.accessories.list({ search: q, page_size: limit }),
+        api.storages.list({ search: q, page_size: limit }),
+        api.mkopa.list({ search: q, page_size: limit }).catch(() => []),
+        api.latestOffers.list({ search: q, page_size: limit }).catch(() => []),
+        api.budgetSmartphones.list({ search: q, page_size: limit }).catch(() => []),
+        api.dialPhones.list({ search: q, page_size: limit }).catch(() => []),
+        api.newIphones.list({ search: q, page_size: limit }).catch(() => []),
+      ]);
+
+      return {
+        smartphones, tablets, reallaptops, televisions, audio,
+        accessories, storages, mkopa, latestOffers,
+        budgetSmartphones, dialPhones, newIphones
+      };
+    },
+  },
 };
 
-const PanelLink = ({ to, onSelect, children, innerRef }) => (
-  <Link
-    ref={innerRef}
-    to={to}
-    className="block rounded-xl px-4 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-700 font-medium"
-    onClick={(e) => {
-      e.preventDefault();
-      onSelect(to);
-    }}
-  >
-    {children}
-  </Link>
-);
-
-export default Header;
-
+export default api;
 

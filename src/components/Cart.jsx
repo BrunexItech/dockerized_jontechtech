@@ -1,6 +1,6 @@
 // src/Pages/Cart.jsx
 import React, { useEffect, useMemo, useState, memo, useCallback } from "react";
-import { useNavigate } from "react-router-dom"; // >>> ADDED
+import { useNavigate } from "react-router-dom";
 import api from "../api";
 
 // Memoized row to avoid re-rendering all items when one changes
@@ -53,12 +53,17 @@ const CartItemRow = memo(function CartItemRow({
 });
 
 const Cart = () => {
-  const navigate = useNavigate(); // >>> ADDED
+  const navigate = useNavigate();
 
   const [cart, setCart] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyMap, setBusyMap] = useState({}); // { [productId]: true }
+
+  // 🔹 Scroll to top when cart mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   // helper to broadcast the current total item count to Header
   const broadcastCount = (items) => {
@@ -71,11 +76,9 @@ const Cart = () => {
       setInitialLoading(true);
       const data = await api.cart.get();
       setCart(data);
-      broadcastCount(data.items); // update header badge after fetch
+      broadcastCount(data.items);
     } catch (err) {
       setError(err.message);
-      // optional: broadcast 0 on error if you prefer resetting the badge
-      // broadcastCount([]);
     } finally {
       setInitialLoading(false);
     }
@@ -85,7 +88,6 @@ const Cart = () => {
     fetchCart();
   }, []);
 
-  // Compute total locally to avoid recomputing on every keypress elsewhere
   const total = useMemo(() => {
     if (!cart) return 0;
     return cart.items.reduce(
@@ -94,7 +96,6 @@ const Cart = () => {
     );
   }, [cart]);
 
-  // Helper: optimistic update a single item by delta (+1/-1) or remove
   const optimisticUpdate = useCallback((productId, deltaOrRemove) => {
     setCart((prev) => {
       if (!prev) return prev;
@@ -107,16 +108,13 @@ const Cart = () => {
       } else {
         const nextQty = Math.max(0, items[idx].quantity + deltaOrRemove);
         if (nextQty === 0) {
-          // when 0, remove the row (backend also deletes at 0)
           items.splice(idx, 1);
         } else {
           items[idx] = { ...items[idx], quantity: nextQty };
         }
       }
 
-      // broadcast new count for the header badge
       broadcastCount(items);
-
       return { ...prev, items };
     });
   }, []);
@@ -127,7 +125,6 @@ const Cart = () => {
       await fn();
     } catch (err) {
       setError(err.message);
-      // On failure, re-sync from server to correct state (and badge)
       fetchCart();
     } finally {
       setBusyMap((m) => {
@@ -138,12 +135,10 @@ const Cart = () => {
     }
   };
 
-  // Actions: optimistic first, then fire API
   const increment = (productId) =>
     withBusy(productId, async () => {
       optimisticUpdate(productId, +1);
       await api.cart.increment(productId);
-      // backend consistent; no full refetch
     })();
 
   const decrement = (productId) =>
@@ -158,9 +153,10 @@ const Cart = () => {
       await api.cart.remove(productId);
     })();
 
-  // >>> ADDED: Simple navigation to checkout (users are already logged in in your flow)
   const handleCheckout = () => {
     if (!cart || cart.items.length === 0) return;
+    // 🔹 Scroll to top before navigating
+    window.scrollTo({ top: 0, behavior: "smooth" });
     navigate("/checkout");
   };
 
@@ -176,7 +172,7 @@ const Cart = () => {
       <div className="space-y-4">
         {cart.items.map((item) => (
           <CartItemRow
-            key={item.product.id} // stable key by product id
+            key={item.product.id}
             item={item}
             busy={!!busyMap[item.product.id]}
             onIncrement={increment}
@@ -191,7 +187,7 @@ const Cart = () => {
         <span className="text-xl font-bold">Total: Ksh {total.toFixed(2)}</span>
         <button
           className="bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 font-medium"
-          onClick={handleCheckout} // >>> CHANGED: was alert(...), now navigate to /checkout
+          onClick={handleCheckout}
         >
           Checkout
         </button>

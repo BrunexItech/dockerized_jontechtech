@@ -109,6 +109,22 @@ export default function Smartphones() {
     }
   };
 
+  // Helper: go to details and scroll to top for nicer UX
+  const goToDetail = (id) => {
+    try {
+      (document.scrollingElement || document.documentElement || document.body)?.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {}
+    navigate(`/smartphone/${id}`);
+  };
+
+  // Keyboard support for the whole card
+  const handleCardKeyDown = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToDetail(id);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="mb-6 text-center text-3xl font-bold">Top Smartphones in Kenya (2025)</h1>
@@ -169,7 +185,12 @@ export default function Smartphones() {
               return (
                 <div
                   key={p.id}
-                  className="flex flex-col rounded-lg border bg-white shadow transition hover:shadow-lg"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goToDetail(p.id)}
+                  onKeyDown={(e) => handleCardKeyDown(e, p.id)}
+                  className="flex flex-col rounded-lg border bg-white shadow transition hover:shadow-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  aria-label={`View details for ${p.name}`}
                 >
                   <div className="flex h-48 w-full items-center justify-center rounded-t-lg bg-white">
                     <img
@@ -210,7 +231,7 @@ export default function Smartphones() {
                     <div className="mt-auto grid grid-cols-2 gap-2">
                       <button
                         className="rounded bg-gray-100 py-2 text-gray-900 transition hover:bg-gray-200"
-                        onClick={() => navigate(`/smartphone/${p.id}`)}
+                        onClick={(e) => { e.stopPropagation(); goToDetail(p.id); }}
                       >
                         View Details
                       </button>
@@ -223,7 +244,8 @@ export default function Smartphones() {
                               : "bg-blue-600 text-white hover:bg-blue-700"
                             : "cursor-not-allowed bg-gray-200 text-gray-500"
                         }`}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (!p.product_id || isAdding) return;
                           handleBuyNow(p);
                         }}

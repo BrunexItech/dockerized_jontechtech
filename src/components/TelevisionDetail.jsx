@@ -15,6 +15,20 @@ export default function TelevisionDetail() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
+  // helper: scroll to top
+  const scrollToTop = (behavior = "smooth") => {
+    const el =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    el.scrollTo({ top: 0, behavior });
+  };
+
+  // scroll to top whenever id changes
+  useEffect(() => {
+    scrollToTop("auto");
+  }, [id]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -33,7 +47,9 @@ export default function TelevisionDetail() {
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const handleAddToCart = async () => {
@@ -44,8 +60,13 @@ export default function TelevisionDetail() {
     try {
       setAdding(true);
       const updatedCart = await api.cart.add(data.product_id, 1);
-      const count = (updatedCart.items || []).reduce((acc, i) => acc + (i.quantity || 0), 0);
-      window.dispatchEvent(new CustomEvent("cart-updated", { detail: { count } }));
+      const count = (updatedCart.items || []).reduce(
+        (acc, i) => acc + (i.quantity || 0),
+        0
+      );
+      window.dispatchEvent(
+        new CustomEvent("cart-updated", { detail: { count } })
+      );
       toast.success(`${data.name} added to cart`);
     } catch (e) {
       toast.error(e?.message || "Failed to add to cart");
@@ -54,26 +75,52 @@ export default function TelevisionDetail() {
     }
   };
 
-  if (loading) return <div className="p-6 text-center text-gray-600">Loading…</div>;
-  if (err) return (
-    <div className="p-6 text-center">
-      <p className="text-red-600 mb-4">Error: {err}</p>
-      <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={() => navigate(-1)}>
-        Go Back
-      </button>
-    </div>
-  );
+  if (loading)
+    return <div className="p-6 text-center text-gray-600">Loading…</div>;
+  if (err)
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-600 mb-4">Error: {err}</p>
+        <button
+          className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+          onClick={() => {
+            scrollToTop();
+            navigate(-1);
+          }}
+        >
+          Go Back
+        </button>
+      </div>
+    );
   if (!data) return null;
 
   const {
-    name, brand_display, panel_display, resolution_display,
-    image, price_display, price_min_ksh, price_max_ksh,
-    specs_text, smart, hdr, refresh_rate_hz, screen_size_inches, slug, product_id,
+    name,
+    brand_display,
+    panel_display,
+    resolution_display,
+    image,
+    price_display,
+    price_min_ksh,
+    price_max_ksh,
+    specs_text,
+    smart,
+    hdr,
+    refresh_rate_hz,
+    screen_size_inches,
+    slug,
+    product_id,
   } = data;
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <button className="mb-6 px-4 py-2 rounded bg-gray-100 hover:bg-gray-200" onClick={() => navigate(-1)}>
+      <button
+        className="mb-6 px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
+        onClick={() => {
+          scrollToTop();
+          navigate(-1);
+        }}
+      >
         ← Back
       </button>
 
@@ -83,7 +130,9 @@ export default function TelevisionDetail() {
             src={image || FallbackImg}
             alt={name}
             className="max-h-full max-w-full object-contain"
-            onError={(e) => { e.currentTarget.src = FallbackImg; }}
+            onError={(e) => {
+              e.currentTarget.src = FallbackImg;
+            }}
           />
         </div>
 
@@ -94,14 +143,23 @@ export default function TelevisionDetail() {
             {screen_size_inches}" • {panel_display} • {resolution_display}
           </p>
           <p className="text-indigo-600 font-semibold text-lg mb-6">
-            {price_display || (price_max_ksh ? `${price_min_ksh} – ${price_max_ksh} KSh` : `${price_min_ksh} KSh`)}
+            {price_display ||
+              (price_max_ksh
+                ? `${price_min_ksh} – ${price_max_ksh} KSh`
+                : `${price_min_ksh} KSh`)}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             <DetailItem label="Smart TV" value={smart ? "Yes" : "No"} />
             <DetailItem label="HDR" value={hdr ? "Yes" : "No"} />
-            <DetailItem label="Refresh Rate" value={refresh_rate_hz ? `${refresh_rate_hz} Hz` : "—"} />
-            <DetailItem label="Size" value={screen_size_inches ? `${screen_size_inches}"` : "—"} />
+            <DetailItem
+              label="Refresh Rate"
+              value={refresh_rate_hz ? `${refresh_rate_hz} Hz` : "—"}
+            />
+            <DetailItem
+              label="Size"
+              value={screen_size_inches ? `${screen_size_inches}"` : "—"}
+            />
             <DetailItem label="Slug" value={slug || "—"} />
             <DetailItem label="Specs" value={specs_text || "—"} />
           </div>
@@ -109,7 +167,9 @@ export default function TelevisionDetail() {
           <div className="flex gap-3">
             <button
               className={`px-5 py-2 rounded-xl ${
-                product_id ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                product_id
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                  : "bg-gray-200 text-gray-500 cursor-not-allowed"
               }`}
               onClick={handleAddToCart}
               disabled={!product_id || adding}
@@ -119,13 +179,16 @@ export default function TelevisionDetail() {
 
             <button
               className={`px-5 py-2 rounded-xl ${
-                product_id ? "bg-gray-100 hover:bg-gray-200 text-gray-900" : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                product_id
+                  ? "bg-gray-100 hover:bg-gray-200 text-gray-900"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
               onClick={() => {
                 if (!product_id) {
                   toast.error("This item is not available for purchase yet.");
                   return;
                 }
+                scrollToTop();
                 navigate(`/checkout?product_id=${product_id}`);
               }}
               disabled={!product_id}

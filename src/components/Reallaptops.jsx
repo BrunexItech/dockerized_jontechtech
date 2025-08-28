@@ -1,6 +1,6 @@
 // src/pages/Reallaptops.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { toast } from "react-toastify";
 
@@ -9,21 +9,21 @@ const FallbackImg = "/images/fallback.jpg";
 export default function Reallaptops() {
   const navigate = useNavigate();
 
-  // Data + pagination (unchanged)
+  // Data + pagination
   const [items, setItems] = useState([]);
   const [count, setCount] = useState(null);
   const [next, setNext] = useState(null);
   const [previous, setPrevious] = useState(null);
 
-  // UI state (unchanged)
+  // UI state
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [ordering, setOrdering] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(12);
 
-  // Track per-card add-to-cart busy state (unchanged)
-  const [addingMap, setAddingMap] = useState({}); // { [id]: true }
+  // Per-card add-to-cart busy state
+  const [addingMap, setAddingMap] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -56,10 +56,12 @@ export default function Reallaptops() {
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [filter, search, ordering, page, pageSize]);
 
-  // Group by brand for display sections (unchanged)
+  // Group by brand
   const grouped = useMemo(() => {
     const map = new Map();
     for (const t of items) {
@@ -70,9 +72,11 @@ export default function Reallaptops() {
     return map;
   }, [items]);
 
-  // Dynamic brand options from current page (unchanged)
+  // Dynamic brand options
   const brandOptions = useMemo(() => {
-    const arr = Array.from(grouped.keys()).sort((a, b) => a.localeCompare(b));
+    const arr = Array.from(grouped.keys()).sort((a, b) =>
+      a.localeCompare(b)
+    );
     return ["All", ...arr];
   }, [grouped]);
 
@@ -81,10 +85,11 @@ export default function Reallaptops() {
     return grouped.has(filter) ? [filter] : [];
   }, [filter, grouped]);
 
-  // Reset page when changing filters (unchanged)
-  useEffect(() => { setPage(1); }, [filter, search, ordering]);
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, ordering]);
 
-  // Add to cart from list (Buy Now behavior) — unchanged logic
+  // Add to cart
   const handleBuyNow = async (item) => {
     if (!item?.product_id) {
       toast.error("This laptop is not available for purchase yet.");
@@ -94,8 +99,13 @@ export default function Reallaptops() {
     setAddingMap((m) => ({ ...m, [id]: true }));
     try {
       const updated = await api.cart.add(item.product_id, 1);
-      const count = (updated.items || []).reduce((acc, i) => acc + (i.quantity || 0), 0);
-      window.dispatchEvent(new CustomEvent("cart-updated", { detail: { count } }));
+      const count = (updated.items || []).reduce(
+        (acc, i) => acc + (i.quantity || 0),
+        0
+      );
+      window.dispatchEvent(
+        new CustomEvent("cart-updated", { detail: { count } })
+      );
       toast.success(`${item.name} added to cart`);
     } catch (e) {
       toast.error(e?.message || "Failed to add to cart");
@@ -108,16 +118,30 @@ export default function Reallaptops() {
     }
   };
 
-  // ------- Card UI (STYLING ONLY copied from Laptops.jsx) -------
+  // ------- Card UI -------
   const Card = ({ t, isAdding }) => {
     const currentImage = t.image || FallbackImg;
-    const price = t.price_display ||
-      (t.price_max_ksh ? `${t.price_min_ksh} – ${t.price_max_ksh} KSh` : `${t.price_min_ksh} KSh`);
+    const price =
+      t.price_display ||
+      (t.price_max_ksh
+        ? `${t.price_min_ksh} – ${t.price_max_ksh} KSh`
+        : `${t.price_min_ksh} KSh`);
     const oldPrice = t.price_max_ksh ? `${t.price_max_ksh} KSh` : null;
-    const discount = t.discount || ""; // will show only if you add this field later
+    const discount = t.discount || "";
 
     return (
-      <div className="group relative bg-white rounded-xl overflow-hidden shadow-md border transition-all duration-300 hover:shadow-xl">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => navigate(`/reallaptop/${t.id}`)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            navigate(`/reallaptop/${t.id}`);
+          }
+        }}
+        className="group relative bg-white rounded-xl overflow-hidden shadow-md border transition-all duration-300 hover:shadow-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+      >
         {discount && (
           <span className="absolute top-2 left-2 z-10 bg-green-600 text-white text-xs px-2 py-1 rounded-full">
             {discount}
@@ -126,29 +150,33 @@ export default function Reallaptops() {
 
         {/* Product Image */}
         <div className="relative overflow-hidden">
-          <Link to={`/reallaptop/${t.id}`} className="block">
-            <img
-              src={currentImage}
-              alt={t.name}
-              className="w-full h-56 object-cover transform transition-transform duration-500 group-hover:scale-110"
-              onError={(e) => { e.currentTarget.src = FallbackImg; }}
-            />
-          </Link>
+          <img
+            src={currentImage}
+            alt={t.name}
+            className="w-full h-56 object-cover transform transition-transform duration-500 group-hover:scale-110"
+            onError={(e) => {
+              e.currentTarget.src = FallbackImg;
+            }}
+          />
         </div>
 
         {/* Hover Buttons BELOW image */}
         <div className="h-0 overflow-hidden group-hover:h-20 transition-all duration-300 bg-white border-t border-gray-200 flex items-center justify-center gap-3 px-4">
           {/* Quick View */}
-          <Link
-            to={`/reallaptop/${t.id}`}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/reallaptop/${t.id}`);
+            }}
             className="flex-1 bg-orange-600 text-white text-center py-2 rounded-lg shadow-md hover:bg-orange-700 hover:scale-105 transform transition text-sm font-medium"
           >
             QUICK VIEW
-          </Link>
+          </button>
 
-          {/* Add to Cart using linked Product PK (logic intact) */}
+          {/* Add to Cart */}
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (!t.product_id || isAdding) return;
               handleBuyNow(t);
             }}
@@ -162,11 +190,17 @@ export default function Reallaptops() {
 
         {/* Card Content */}
         <div className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mt-1">{t.name}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mt-1">
+            {t.name}
+          </h3>
           <p className="text-gray-600 text-sm">{t.brand || ""}</p>
           <div className="mt-3 flex items-center gap-2">
             <span className="text-orange-600 font-bold">{price}</span>
-            {oldPrice && <span className="text-gray-400 line-through text-sm">{oldPrice}</span>}
+            {oldPrice && (
+              <span className="text-gray-400 line-through text-sm">
+                {oldPrice}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -176,16 +210,20 @@ export default function Reallaptops() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-center">Top Laptops in Kenya (2025)</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">
+        Top Laptops in Kenya (2025)
+      </h1>
 
-      {/* Filters (unchanged) */}
+      {/* Filters */}
       <div className="flex flex-wrap gap-2 justify-center mb-4">
         {brandOptions.map((b) => (
           <button
             key={b}
             onClick={() => setFilter(b)}
             className={`py-2 px-4 rounded shadow ${
-              filter === b ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+              filter === b
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 hover:bg-gray-300 text-gray-800"
             }`}
           >
             {b}
@@ -215,17 +253,22 @@ export default function Reallaptops() {
         </select>
       </div>
 
-      {/* Results summary (unchanged) */}
+      {/* Results summary */}
       <div className="text-center mb-6 text-sm text-gray-600">
-        {items.length === 0 ? "No laptops found." : count !== null ? `Showing ${items.length} of ${count}` : `Showing ${items.length}`}
+        {items.length === 0
+          ? "No laptops found."
+          : count !== null
+          ? `Showing ${items.length} of ${count}`
+          : `Showing ${items.length}`}
       </div>
 
-      {/* Sections (logic unchanged, styling applied inside <Card />) */}
+      {/* Sections */}
       {sectionBrands.map((brand) => (
         <section key={brand} className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4 text-center">{brand}</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-center">
+            {brand}
+          </h2>
 
-          {/* Grid matches your example: 1 / 2 / 4 columns */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {grouped.get(brand)?.map((t) => {
               const isAdding = !!addingMap[t.id];
@@ -235,14 +278,16 @@ export default function Reallaptops() {
         </section>
       ))}
 
-      {/* Pagination (unchanged) */}
+      {/* Pagination */}
       {(previous || next) && (
         <div className="mt-8 flex items-center justify-center gap-3">
           <button
             disabled={!previous || page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             className={`px-4 py-2 rounded ${
-              previous && page > 1 ? "bg-gray-200 hover:bg-gray-300" : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              previous && page > 1
+                ? "bg-gray-200 hover:bg-gray-300"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"
             }`}
           >
             ← Previous
@@ -251,7 +296,11 @@ export default function Reallaptops() {
           <button
             disabled={!next}
             onClick={() => setPage((p) => p + 1)}
-            className={`px-4 py-2 rounded ${next ? "bg-gray-200 hover:bg-gray-300" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+            className={`px-4 py-2 rounded ${
+              next
+                ? "bg-gray-200 hover:bg-gray-300"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
           >
             Next →
           </button>

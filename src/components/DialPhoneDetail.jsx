@@ -15,6 +15,20 @@ export default function DialPhoneDetail() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
+  // helper to scroll page top
+  const scrollToTop = (behavior = "smooth") => {
+    const el =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    el.scrollTo({ top: 0, behavior });
+  };
+
+  // scroll to top when id changes (new detail page)
+  useEffect(() => {
+    scrollToTop("auto");
+  }, [id]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -54,11 +68,25 @@ export default function DialPhoneDetail() {
     }
   };
 
+  const handleBack = () => {
+    scrollToTop();
+    navigate(-1);
+  };
+
+  const handleCheckout = () => {
+    if (!data?.product_id) {
+      toast.error("This item is not available for purchase yet.");
+      return;
+    }
+    scrollToTop();
+    navigate(`/checkout?product_id=${data.product_id}`);
+  };
+
   if (loading) return <div className="p-6 text-center text-gray-600">Loading…</div>;
   if (err) return (
     <div className="p-6 text-center">
       <p className="text-red-600 mb-4">Error: {err}</p>
-      <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={() => navigate(-1)}>
+      <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={handleBack}>
         Go Back
       </button>
     </div>
@@ -72,7 +100,7 @@ export default function DialPhoneDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <button className="mb-6 px-4 py-2 rounded bg-gray-100 hover:bg-gray-200" onClick={() => navigate(-1)}>
+      <button className="mb-6 px-4 py-2 rounded bg-gray-100 hover:bg-gray-200" onClick={handleBack}>
         ← Back
       </button>
 
@@ -115,13 +143,7 @@ export default function DialPhoneDetail() {
               className={`px-5 py-2 rounded-xl ${
                 product_id ? "bg-gray-100 hover:bg-gray-200 text-gray-900" : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
-              onClick={() => {
-                if (!product_id) {
-                  toast.error("This item is not available for purchase yet.");
-                  return;
-                }
-                navigate(`/checkout?product_id=${product_id}`);
-              }}
+              onClick={handleCheckout}
               disabled={!product_id}
             >
               Checkout

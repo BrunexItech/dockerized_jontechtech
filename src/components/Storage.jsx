@@ -30,7 +30,7 @@ const StoragePage = () => {
   const [next, setNext] = useState(null);
   const [previous, setPrevious] = useState(null);
 
-  // UI state (preserve your look & controls)
+  // UI state
   const [filter, setFilter] = useState("All");
   const [ordering, setOrdering] = useState("latest"); // "latest" | "price_low" | "price_high"
   const [page, setPage] = useState(1);
@@ -119,6 +119,15 @@ const StoragePage = () => {
     return map;
   }, [items]);
 
+  // Card helpers
+  const goToDetails = (id) => navigate(`/storage/${id}`);
+  const onCardKey = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToDetails(id);
+    }
+  };
+
   return (
     <div className="p-6">
       {/* Persuasive message (unchanged) */}
@@ -132,7 +141,7 @@ const StoragePage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Sidebar (kept) */}
+        {/* Sidebar */}
         <div className="md:col-span-1 space-y-6">
           {/* Filter by Brand */}
           <div className="border p-4 rounded-lg shadow-sm">
@@ -150,7 +159,7 @@ const StoragePage = () => {
             </div>
           </div>
 
-          {/* Filter by Price (visual only for now; server-side range can be added later) */}
+          {/* Filter by Price (visual only) */}
           <div className="border p-4 rounded-lg shadow-sm">
             <h3 className="font-semibold mb-3">Filter by Price</h3>
             <input type="range" min="1500" max="40000" className="w-full" />
@@ -160,7 +169,7 @@ const StoragePage = () => {
             </button>
           </div>
 
-          {/* Latest Products (kept static, marketing) */}
+          {/* Latest Products (static) */}
           <div className="border p-4 rounded-lg shadow-sm">
             <h3 className="font-semibold mb-3">Latest Products</h3>
             <ul className="space-y-3 text-sm">
@@ -174,9 +183,9 @@ const StoragePage = () => {
           </div>
         </div>
 
-        {/* Main content (kept look but wired) */}
+        {/* Main content */}
         <div className="md:col-span-3">
-          {/* Sort and View options (wired to ordering + pageSize) */}
+          {/* Sort and View options */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2 text-gray-600">
               <FaThLarge className="cursor-pointer" />
@@ -222,7 +231,12 @@ const StoragePage = () => {
               return (
                 <div
                   key={product.id}
-                  className="border rounded-lg p-3 shadow-sm relative transform transition duration-300 hover:scale-105 hover:shadow-lg bg-white"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View details for ${product.name}`}
+                  onClick={() => goToDetails(product.id)}
+                  onKeyDown={(e) => onCardKey(e, product.id)}
+                  className="border rounded-lg p-3 shadow-sm relative transform transition duration-300 hover:scale-105 hover:shadow-lg bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
                 >
                   {!!product.price_max_ksh && (
                     <span className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
@@ -246,10 +260,14 @@ const StoragePage = () => {
                         : `${product.price_min_ksh} KSh`)}
                   </p>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* Buttons stacked vertically */}
+                  <div className="flex flex-col gap-2">
                     <button
                       className="bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 rounded transition"
-                      onClick={() => navigate(`/storage/${product.id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // don't trigger card click
+                        goToDetails(product.id);
+                      }}
                     >
                       View Details
                     </button>
@@ -262,7 +280,8 @@ const StoragePage = () => {
                             : "bg-blue-600 hover:bg-blue-700 text-white"
                           : "bg-gray-200 text-gray-500 cursor-not-allowed"
                       }`}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation(); // don't trigger card click
                         if (!product.product_id || isAdding) return;
                         handleBuyNow(product);
                       }}

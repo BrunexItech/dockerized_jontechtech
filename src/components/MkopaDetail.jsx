@@ -14,6 +14,20 @@ export default function MkopaDetail() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
+  // helper to scroll page to top
+  const scrollToTop = (behavior = "smooth") => {
+    const el =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    el.scrollTo({ top: 0, behavior });
+  };
+
+  // scroll to top when page loads / id changes
+  useEffect(() => {
+    scrollToTop("auto");
+  }, [id]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -23,8 +37,8 @@ export default function MkopaDetail() {
         if (!cancelled) setData(item);
       } catch (e) {
         if (!cancelled) {
-          setErr(e?.message || "Failed to load M‑KOPA item.");
-          toast.error(e?.message || "Failed to load M‑KOPA item");
+          setErr(e?.message || "Failed to load M-KOPA item.");
+          toast.error(e?.message || "Failed to load M-KOPA item");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -55,7 +69,10 @@ export default function MkopaDetail() {
   if (err) return (
     <div className="p-6 text-center">
       <p className="text-red-600 mb-4">Error: {err}</p>
-      <button className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={() => navigate(-1)}>
+      <button
+        className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+        onClick={() => { scrollToTop(); navigate(-1); }}
+      >
         Go Back
       </button>
     </div>
@@ -70,7 +87,10 @@ export default function MkopaDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <button className="mb-6 px-4 py-2 rounded bg-gray-100 hover:bg-gray-200" onClick={() => navigate(-1)}>
+      <button
+        className="mb-6 px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
+        onClick={() => { scrollToTop(); navigate(-1); }}
+      >
         ← Back
       </button>
 
@@ -125,6 +145,7 @@ export default function MkopaDetail() {
                   toast.error("This item is not available for purchase yet.");
                   return;
                 }
+                scrollToTop();
                 navigate(`/checkout?product_id=${product_id}`);
               }}
               disabled={!product_id}

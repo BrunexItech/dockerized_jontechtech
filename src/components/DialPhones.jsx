@@ -51,7 +51,10 @@ export default function DialPhones() {
           setNext(null);
           setPrevious(null);
           console.error("Failed to load dial phones:", e);
-          toast.error(e?.message || "Failed to load dial phones");
+          toast.error(e?.message || "Failed to load dial phones", {
+            autoClose: 1500,
+            position: "top-center",
+          });
         }
       }
     }
@@ -66,7 +69,10 @@ export default function DialPhones() {
 
   const handleBuyNow = async (item) => {
     if (!item?.product_id) {
-      toast.error("This item is not available for purchase yet.");
+      toast.error("This item is not available for purchase yet.", {
+        autoClose: 1500,
+        position: "top-center",
+      });
       return;
     }
     const id = item.id;
@@ -75,9 +81,15 @@ export default function DialPhones() {
       const updated = await api.cart.add(item.product_id, 1);
       const count = (updated.items || []).reduce((acc, i) => acc + (i.quantity || 0), 0);
       window.dispatchEvent(new CustomEvent("cart-updated", { detail: { count } }));
-      toast.success(`${item.name} added to cart`);
+      toast.success(`${item.name} added to cart`, {
+        autoClose: 1500,
+        position: "top-center",
+      });
     } catch (e) {
-      toast.error(e?.message || "Failed to add to cart");
+      toast.error(e?.message || "Failed to add to cart", {
+        autoClose: 1500,
+        position: "top-center",
+      });
     } finally {
       setAddingMap((m) => {
         const copy = { ...m };
@@ -104,11 +116,26 @@ export default function DialPhones() {
           const isAdding = !!addingMap[product.id];
           const priceText = product.price_display || (product.price_min_ksh ? `${product.price_min_ksh.toLocaleString()} KSh` : "");
           const oldPriceText = product.price_max_ksh ? `${product.price_max_ksh.toLocaleString()} KSh` : null;
+          const clickable = !!product.id;
 
           return (
             <div
               key={product.id}
-              className="relative bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center p-4 group"
+              className={[
+                "relative bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center p-4 group",
+                clickable ? "cursor-pointer" : "cursor-default",
+              ].join(" ")}
+              onClick={() => clickable && navigate(`/dialphones/${product.id}`)}
+              onKeyDown={(e) => {
+                if (!clickable) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(`/dialphones/${product.id}`);
+                }
+              }}
+              role={clickable ? "button" : undefined}
+              tabIndex={clickable ? 0 : -1}
+              aria-label={clickable ? `View details for ${product.name}` : undefined}
             >
               {/* Badge */}
               {product.badge && (
@@ -145,17 +172,20 @@ export default function DialPhones() {
                 {oldPriceText && <p className="text-sm text-gray-400 line-through">{oldPriceText}</p>}
               </div>
 
-              {/* Buttons */}
-              <div className="mt-4 w-full grid grid-cols-2 gap-2">
+              {/* Buttons (professional, slimmer; stop propagation so card click doesn't fire) */}
+              <div
+                className="mt-4 w-full grid grid-cols-2 gap-2"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   onClick={() => navigate(`/dialphones/${product.id}`)}
-                  className="inline-flex items-center justify-center rounded-xl border bg-white hover:bg-gray-50 text-gray-900 py-2 px-3 transition"
+                  className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
                 >
                   View Details
                 </button>
 
                 <button
-                  className={`inline-flex items-center justify-center rounded-xl py-2 px-3 transition ${
+                  className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition ${
                     product.product_id
                       ? isAdding
                         ? "bg-blue-600 text-white opacity-70 cursor-wait"

@@ -64,7 +64,10 @@ const LatestOffers = () => {
           setNext(null);
           setPrevious(null);
           console.error("Failed to load latest offers:", e);
-          toast.error(e?.message || "Failed to load latest offers");
+          toast.error(e?.message || "Failed to load latest offers", {
+            autoClose: 1500,
+            position: "top-center",
+          }); // 👈 toast updated
         }
       }
     }
@@ -81,7 +84,10 @@ const LatestOffers = () => {
 
   const handleAddToCart = async (offer) => {
     if (!offer?.product_id) {
-      toast.error("This offer is not available for purchase yet.");
+      toast.error("This offer is not available for purchase yet.", {
+        autoClose: 1500,
+        position: "top-center",
+      }); // 👈 toast updated
       return;
     }
     const id = offer.id;
@@ -95,9 +101,15 @@ const LatestOffers = () => {
       window.dispatchEvent(
         new CustomEvent("cart-updated", { detail: { count } })
       );
-      toast.success(`${offer.name} added to cart`);
+      toast.success(`${offer.name} added to cart`, {
+        autoClose: 1500,
+        position: "top-center",
+      }); // 👈 toast updated
     } catch (e) {
-      toast.error(e?.message || "Failed to add to cart");
+      toast.error(e?.message || "Failed to add to cart", {
+        autoClose: 1500,
+        position: "top-center",
+      }); // 👈 toast updated
     } finally {
       setAddingMap((m) => {
         const copy = { ...m };
@@ -112,6 +124,11 @@ const LatestOffers = () => {
     const set = new Set(items.map((x) => x.brand).filter(Boolean));
     return ["All", ...Array.from(set)];
   }, [items]);
+
+  // navigate to details (using latest-offers route you already have)
+  const goToDetails = (product) => {
+    navigate(`/latest-offers/${product.id}`);
+  };
 
   return (
     <section className="px-4 py-10">
@@ -192,7 +209,17 @@ const LatestOffers = () => {
           return (
             <div
               key={product.id}
-              className="border rounded-lg p-3 shadow hover:shadow-xl relative bg-white transform transition-transform duration-300 hover:scale-105"
+              className="border rounded-lg p-3 shadow hover:shadow-xl relative bg-white transform transition-transform duration-300 hover:scale-105 cursor-pointer"
+              onClick={() => goToDetails(product)} // 👈 card click to details
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  goToDetails(product);
+                }
+              }}
+              aria-label={`View details for ${product.name}`}
             >
               {/* Labels */}
               <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
@@ -235,16 +262,19 @@ const LatestOffers = () => {
               </div>
 
               {/* Actions */}
-              <div className="grid grid-cols-2 gap-2">
+              <div
+                className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                onClick={(e) => e.stopPropagation()} // 👈 prevent card click when pressing buttons
+              >
                 <button
-                  className="w-full border bg-white text-gray-900 py-2 rounded hover:bg-gray-50 transition"
+                  className="w-full border bg-white text-gray-900 py-2 text-sm sm:py-2.5 sm:text-sm md:py-3 md:text-base font-medium rounded-lg hover:bg-gray-50 shadow-sm transition"
                   onClick={() => navigate(`/latest-offers/${product.id}`)}
                 >
                   View Details
                 </button>
 
                 <button
-                  className={`w-full py-2 rounded transition ${
+                  className={`w-full py-2 text-sm sm:py-2.5 sm:text-sm md:py-3 md:text-base font-medium rounded-lg shadow-sm transition ${
                     product.product_id
                       ? isAdding
                         ? "bg-blue-600 text-white opacity-70 cursor-wait"
