@@ -1,5 +1,5 @@
 import React from 'react'
-import { FaHeadset, FaShippingFast, FaThumbsUp, FaFacebook, FaYoutube, FaInstagram, FaTwitter } from 'react-icons/fa'
+import { FaHeadset, FaShippingFast, FaThumbsUp, FaFacebook, FaInstagram, FaTwitter, FaWhatsapp } from 'react-icons/fa'
 import logo from '../assets/logo.svg'
 
 const Footer = () => {
@@ -69,8 +69,14 @@ const Footer = () => {
           <div>
             <h4 className='font-semibold mb-3 text-blue-600'>Follow Us</h4>
             <div className='flex gap-4 text-xl'>
+              <a 
+                href="https://wa.me/254795299451?text=Hello%20I%20am%20interested%20in%20your%20products" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <FaWhatsapp />
+              </a>
               <a href='#'><FaFacebook /></a>
-              <a href='#'><FaYoutube /></a>
               <a href='#'><FaInstagram /></a>
               <a href='#'><FaTwitter /></a>
             </div>

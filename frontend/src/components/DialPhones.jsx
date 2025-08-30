@@ -172,20 +172,21 @@ export default function DialPhones() {
                 {oldPriceText && <p className="text-sm text-gray-400 line-through">{oldPriceText}</p>}
               </div>
 
-              {/* Buttons (professional, slimmer; stop propagation so card click doesn't fire) */}
+              {/* Buttons (stacked vertically; full-width; consistent size) */}
               <div
-                className="mt-4 w-full grid grid-cols-2 gap-2"
+                className="mt-4 w-full flex flex-col gap-2"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
                   onClick={() => navigate(`/dialphones/${product.id}`)}
-                  className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                  className="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 px-4 h-11 text-sm font-medium shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                  aria-label={`View details for ${product.name}`}
                 >
                   View Details
                 </button>
 
                 <button
-                  className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition ${
+                  className={`w-full inline-flex items-center justify-center rounded-md px-4 h-11 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition ${
                     product.product_id
                       ? isAdding
                         ? "bg-blue-600 text-white opacity-70 cursor-wait"
@@ -195,6 +196,7 @@ export default function DialPhones() {
                   onClick={() => { if (!product.product_id || isAdding) return; handleBuyNow(product); }}
                   disabled={!product.product_id || isAdding}
                   title={product.product_id ? "Add to cart" : "Unavailable"}
+                  aria-label={product.product_id ? `Buy ${product.name} now` : "Unavailable"}
                 >
                   {isAdding ? "Adding…" : "Buy Now"}
                 </button>
