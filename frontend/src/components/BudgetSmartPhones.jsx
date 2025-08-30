@@ -210,14 +210,14 @@ export default function BudgetSmartphoneDeals() {
                 ) : null}
               </div>
 
-              {/* Actions (stacked on mobile, side-by-side from sm+) */}
+              {/* Actions (stacked on mobile, side-by-side on sm, stacked on desktop) */}
               <div
-                className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full"
+                className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 w-full"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* View Details - outline style, slim on mobile */}
+                {/* View Details */}
                 <button
-                  className="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 px-3 py-1.5 text-sm md:py-2 font-medium shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                  className="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 px-3 py-2 text-sm font-medium shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
                   onClick={() => p?.id && navigate(`/budget-smartphones/${p.id}`)}
                   disabled={!p?.id}
                   title="View Details"
@@ -225,9 +225,9 @@ export default function BudgetSmartphoneDeals() {
                   View Details
                 </button>
 
-                {/* Buy Now - primary style, slim on mobile */}
+                {/* Buy Now */}
                 <button
-                  className={`w-full inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm md:py-2 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition ${
+                  className={`w-full inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition ${
                     p?.product_id
                       ? isAdding
                         ? "bg-blue-600 text-white opacity-70 cursor-wait"

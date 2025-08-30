@@ -1,381 +1,276 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../api";
+import { toast } from "react-toastify";
 
+const FallbackImg = "/images/fallback.jpg";
 
+const BRAND_OPTIONS = ["All", "Xiaomi", "Infinix", "Samsung", "Tecno", "Itel", "Realme", "Nokia", "Vivo", "Oppo", "Villaon", "Unbranded"];
+const BADGE_OPTIONS = ["All", "OPEN", "OPEN HOT"];
 
+const skeleton = new Array(10).fill(0);
 
+export default function BudgetSmartphoneDeals() {
+  const navigate = useNavigate();
 
+  const [items, setItems] = useState([]);
+  const [count, setCount] = useState(null);
+  const [next, setNext] = useState(null);
+  const [previous, setPrevious] = useState(null);
 
+  const [brand, setBrand] = useState("All");
+  const [badge, setBadge] = useState("All");
+  const [search, setSearch] = useState("");
+  const [ordering, setOrdering] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
 
+  const [addingMap, setAddingMap] = useState({});
 
+  useEffect(() => {
+    let cancelled = false;
 
-
-
-
-
-
-
-
-// src/api.js
-// Single source of truth for API calls in Vite/React.
-
-function getBaseUrl() {
-  // Prefer explicit env if provided; strip trailing slash
-  let envUrl = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
-  // If empty -> SAME ORIGIN (best for ngrok/mobile)
-  return envUrl; // "" means same-origin
-}
-
-/* ------------------------- Token storage helpers ------------------------- */
-export function setTokens({ access, refresh, user } = {}) {
-  if (access) localStorage.setItem("access", access);
-  if (refresh) localStorage.setItem("refresh", refresh);
-  if (user) localStorage.setItem("user", JSON.stringify(user));
-  window.dispatchEvent(new Event("auth-changed"));
-}
-
-export function getAccessToken() {
-  return localStorage.getItem("access");
-}
-
-export function getUser() {
-  const raw = localStorage.getItem("user");
-  try {
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function clearAuth() {
-  localStorage.removeItem("access");
-  localStorage.removeItem("refresh");
-  localStorage.removeItem("user");
-  window.dispatchEvent(new Event("auth-changed"));
-}
-
-/* ------------------------------ Error helper ----------------------------- */
-function firstMessage(payload) {
-  if (!payload) return "Request failed.";
-  if (typeof payload === "string") {
-    if (payload === "Authentication credentials were not provided.") {
-      return "Please login or Sign up to make a purchase";
+    async function load() {
+      try {
+        setItems([]);
+        const data = await api.budgetSmartphones.list({
+          brand: brand !== "All" ? brand : undefined,
+          badge: badge !== "All" ? badge : undefined,
+          search: search || undefined,
+          ordering: ordering || undefined,
+          page,
+          page_size: pageSize,
+        });
+        const arr = Array.isArray(data) ? data : data?.results || [];
+        if (!cancelled) {
+          setItems(arr);
+          setCount(Array.isArray(data) ? arr.length : data?.count ?? null);
+          setNext(Array.isArray(data) ? null : data?.next ?? null);
+          setPrevious(Array.isArray(data) ? null : data?.previous ?? null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setItems([]);
+          setCount(null);
+          setNext(null);
+          setPrevious(null);
+          console.error("Failed to load budget smartphones:", e);
+          toast.error(e?.message || "Failed to load budget smartphones", {
+            autoClose: 1500,
+            position: "top-center",
+          });
+        }
+      }
     }
-    return payload;
-  }
-  if (Array.isArray(payload)) return payload.length ? firstMessage(payload[0]) : "Request failed.";
-  if (payload.detail) return firstMessage(payload.detail);
-  const k = Object.keys(payload)[0];
-  return k ? firstMessage(payload[k]) : "Request failed.";
-}
 
-/* --------------------------- Query string helper -------------------------- */
-function qs(params = {}) {
-  const u = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    const s = String(v).trim();
-    if (s !== "") u.set(k, s);
-  });
-  const s = u.toString();
-  return s ? `?${s}` : "";
-}
+    load();
+    return () => { cancelled = true; };
+  }, [brand, badge, search, ordering, page, pageSize]);
 
-/* ------------------------------- Core fetch ------------------------------- */
-async function coreFetch(path, { method = "GET", body, headers } = {}, auth = false) {
-  const base = getBaseUrl(); // "" or absolute https://...
-  const url = `${base}${path}`; // if base="" -> same-origin
+  useEffect(() => {
+    setPage(1);
+  }, [brand, badge, search, ordering]);
 
-  const h = { "Content-Type": "application/json", ...(headers || {}) };
-  if (auth) {
-    const token = getAccessToken();
-    if (token) h.Authorization = `Bearer ${token}`;
-  }
-
-  const res = await fetch(url, {
-    method,
-    headers: h,
-    body: body ? JSON.stringify(body) : undefined,
-    // If you ever switch to cookie-based sessions, add:
-    // credentials: "include",
-  });
-
-  let data = null;
-  try { data = await res.json(); } catch {}
-
-  if (!res.ok) throw new Error(firstMessage(data) || `HTTP ${res.status}`);
-  return data;
-}
-
-export function request(path, opts = {}) {
-  return coreFetch(path, opts, false);
-}
-export function authRequest(path, opts = {}) {
-  return coreFetch(path, opts, true);
-}
-
-/* --------------------------------- API ----------------------------------- */
-export const api = {
-  /* ------------------------------- Auth ------------------------------- */
-  register(payload) {
-    return request("/api/auth/register/", { method: "POST", body: payload });
-  },
-
-  async login({ email, password }) {
-    const data = await request("/api/auth/login/", {
-      method: "POST",
-      body: { email, password },
-    });
-    setTokens({ access: data.access, refresh: data.refresh, user: data.user });
-    return data;
-  },
-
-  me() {
-    return authRequest("/api/auth/me/");
-  },
-
-  // Password reset
-  forgotPassword({ email }) {
-    return request("/api/auth/forgot-password/", { method: "POST", body: { email } });
-  },
-
-  resetPassword({ uid, token, new_password }) {
-    return request("/api/auth/reset-password/", {
-      method: "POST",
-      body: { uid, token, new_password },
-    });
-  },
-
-  /* ----------------------------- Products ----------------------------- */
-  products: {
-    list() {
-      return request("/api/products/");
-    },
-    get(id) {
-      return request(`/api/products/${id}/`);
-    },
-  },
-
-  /* ------------------------------- Cart ------------------------------- */
-  cart: {
-    get() {
-      return authRequest("/api/cart/");
-    },
-    add(productId, quantity = 1) {
-      return authRequest("/api/cart/add/", {
-        method: "POST",
-        body: { product_id: productId, quantity },
+  const handleBuyNow = async (phone) => {
+    if (!phone?.product_id) {
+      toast.error("This item is not available for purchase yet.", {
+        autoClose: 1500,
+        position: "top-center",
       });
-    },
-    remove(productId) {
-      return authRequest("/api/cart/remove/", {
-        method: "POST",
-        body: { product_id: productId },
+      return;
+    }
+    const id = phone.id;
+    setAddingMap((m) => ({ ...m, [id]: true }));
+    try {
+      const updated = await api.cart.add(phone.product_id, 1);
+      const cnt = (updated.items || []).reduce((acc, i) => acc + (i.quantity || 0), 0);
+      window.dispatchEvent(new CustomEvent("cart-updated", { detail: { count: cnt } }));
+      toast.success(`${phone.name} added to cart`, {
+        autoClose: 1500,
+        position: "top-center",
       });
-    },
-    increment(productId) {
-      return authRequest("/api/cart/add/", {
-        method: "POST",
-        body: { product_id: productId, quantity: 1 },
+    } catch (e) {
+      toast.error(e?.message || "Failed to add to cart", {
+        autoClose: 1500,
+        position: "top-center",
       });
-    },
-    decrement(productId) {
-      return authRequest("/api/cart/add/", {
-        method: "POST",
-        body: { product_id: productId, quantity: -1 },
+    } finally {
+      setAddingMap((m) => {
+        const copy = { ...m };
+        delete copy[id];
+        return copy;
       });
-    },
-  },
+    }
+  };
 
-  /* ------------------------------ Tablets ---------------------------- */
-  tablets: {
-    list({ brand, search, ordering, page, page_size } = {}) {
-      return request(`/api/tablets/${qs({ brand, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/tablets/${id}/`);
-    },
-  },
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* Title */}
+      <h2 className="text-lg font-bold mb-6 text-gray-800 text-center">Budget Smartphone Deals</h2>
 
-  /* --------------------------- Reallaptops ---------------------------- */
-  reallaptops: {
-    list({ brand, search, ordering, page, page_size } = {}) {
-      return request(`/api/reallaptops/${qs({ brand, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/reallaptops/${id}/`);
-    },
-  },
+      {/* Filters */}
+      <div className="flex flex-wrap justify-center gap-3 mb-5">
+        <select value={brand} onChange={(e) => setBrand(e.target.value)} className="border rounded px-3 py-2">
+          {BRAND_OPTIONS.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
 
-  /* ---------------------------- Smartphones --------------------------- */
-  smartphones: {
-    list({ brand, search, ordering, page, page_size } = {}) {
-      return request(`/api/smartphones/${qs({ brand, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/smartphones/${id}/`);
-    },
-  },
+        <select value={badge} onChange={(e) => setBadge(e.target.value)} className="border rounded px-3 py-2">
+          {BADGE_OPTIONS.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
 
-  /* ------------------------------ Storages ---------------------------- */
-  storages: {
-    list({ brand, search, ordering, page, page_size } = {}) {
-      return request(`/api/storages/${qs({ brand, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/storages/${id}/`);
-    },
-  },
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search phone/model/brand…"
+          className="border rounded px-3 py-2 w-72"
+        />
 
-  /* --------------------------- Audio Devices --------------------------- */
-  audio: {
-    list({ brand, category, search, ordering, page, page_size } = {}) {
-      return request(`/api/audio-devices/${qs({ brand, category, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/audio-devices/${id}/`);
-    },
-  },
+        <select value={ordering} onChange={(e) => setOrdering(e.target.value)} className="border rounded px-3 py-2">
+          <option value="">Default order</option>
+          <option value="created_at">Created (oldest first)</option>
+          <option value="-created_at">Created (newest first)</option>
+          <option value="price_min_ksh">Price (low first)</option>
+          <option value="-price_min_ksh">Price (high first)</option>
+          <option value="name">Name (A→Z)</option>
+          <option value="-name">Name (Z→A)</option>
+        </select>
+      </div>
 
-  /* ----------------------- Mobile Accessories ------------------------- */
-  accessories: {
-    list({ brand, category, search, ordering, page, page_size } = {}) {
-      return request(`/api/mobile-accessories/${qs({ brand, category, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/mobile-accessories/${id}/`);
-    },
-  },
+      {/* Summary */}
+      <div className="text-center mb-6 text-sm text-gray-600">
+        {items.length === 0 ? "No budget smartphones found." : count !== null ? `Showing ${items.length} of ${count}` : `Showing ${items.length}`}
+      </div>
 
-  /* ----------------------------- Televisions --------------------------- */
-  televisions: {
-    list({ brand, panel, resolution, min_size, max_size, search, ordering, page, page_size } = {}) {
-      return request(
-        `/api/televisions/${qs({ brand, panel, resolution, min_size, max_size, search, ordering, page, page_size })}`
-      );
-    },
-    get(id) {
-      return request(`/api/televisions/${id}/`);
-    },
-  },
+      {/* Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        {(items.length ? items : skeleton).map((p, idx) => {
+          const k = p?.id ?? `s-${idx}`;
+          const isAdding = !!addingMap[p?.id];
+          const clickable = !!p?.id;
 
-  // M-KOPA
-  mkopa: {
-    list({ brand, category, search, ordering, page, page_size } = {}) {
-      return request(`/api/mkopa-items/${qs({ brand, category, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/mkopa-items/${id}/`);
-    },
-  },
+          return (
+            <div
+              key={k}
+              className={[
+                "relative border border-gray-300 rounded-lg p-3 pt-8 flex flex-col items-center group shadow-sm hover:shadow-lg hover:border-blue-500 transition-all duration-300 ease-in-out transform hover:-translate-y-2 bg-white",
+                clickable ? "cursor-pointer" : "cursor-default"
+              ].join(" ")}
+              onClick={() => clickable && navigate(`/budget-smartphones/${p.id}`)}
+              onKeyDown={(e) => {
+                if (!clickable) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(`/budget-smartphones/${p.id}`);
+                }
+              }}
+              role={clickable ? "button" : undefined}
+              tabIndex={clickable ? 0 : -1}
+              aria-label={clickable ? `View details for ${p?.name ?? "item"}` : undefined}
+            >
+              {/* Badge */}
+              {p?.badge && (
+                <span
+                  className={`absolute top-2 left-2 z-10 ${
+                    p.badge.includes("HOT") ? "bg-gradient-to-r from-blue-500 to-blue-700" : "bg-gradient-to-r from-red-500 to-red-700"
+                  } text-white text-xs font-bold px-2 py-1 rounded-full shadow-md`}
+                >
+                  {p.badge}
+                </span>
+              )}
 
-  /* --------------------------- Latest Offers --------------------------- */
-  latestOffers: {
-    list({ brand, label, search, ordering, page, page_size } = {}) {
-      return request(`/api/latest-offers/${qs({ brand, label, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/latest-offers/${id}/`);
-    },
-  },
+              {/* Image */}
+              <div className="relative w-full overflow-hidden rounded-lg">
+                {p ? (
+                  <img
+                    src={p.image || FallbackImg}
+                    alt={p.name}
+                    className="w-full h-40 object-contain transition-transform duration-500 group-hover:scale-110"
+                    onError={(e) => { e.currentTarget.src = FallbackImg; }}
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-40 bg-gray-100 animate-pulse rounded-lg" />
+                )}
+                <div className="absolute bottom-0 left-0 w-0 h-[2px] bg-blue-500 transition-all duration-300 group-hover:w-full" />
+              </div>
 
-  /* ---------------------- Budget Smartphones (NEW) --------------------- */
-  budgetSmartphones: {
-    list({ brand, badge, search, ordering, page, page_size } = {}) {
-      return request(`/api/budget-smartphones/${qs({ brand, badge, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/budget-smartphones/${id}/`);
-    },
-  },
+              {/* Name & brand */}
+              <h3 className="mt-3 text-sm font-semibold text-center text-gray-800 group-hover:text-blue-600 transition-colors duration-300">
+                {p?.name || "—"}
+              </h3>
+              <p className="text-xs text-gray-500">{p?.brand_display || p?.brand || "—"}</p>
 
-  /* --------------------------- Dial Phones --------------------------- */
-  dialPhones: {
-    list({ brand, badge, search, ordering, page, page_size } = {}) {
-      return request(`/api/dial-phones/${qs({ brand, badge, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/dial-phones/${id}/`);
-    },
-  },
+              {/* Prices */}
+              <div className="mt-2 text-center">
+                <p className="text-red-500 font-bold">{p?.price_display || "—"}</p>
+                {p?.price_max_ksh ? (
+                  <p className="text-gray-400 text-sm line-through">
+                    {`${p.price_max_ksh.toLocaleString()} KSh`}
+                  </p>
+                ) : null}
+              </div>
 
-  /* --------------------------- New iPhones ---------------------------- */
-  newIphones: {
-    list({ badge, search, ordering, page, page_size } = {}) {
-      return request(`/api/new-iphones/${qs({ badge, search, ordering, page, page_size })}`);
-    },
-    get(id) {
-      return request(`/api/new-iphones/${id}/`);
-    },
-    banner() {
-      return request(`/api/new-iphones-banner/`);
-    },
-  },
+              {/* Actions (stacked on mobile, side-by-side from sm+) */}
+              <div
+                className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* View Details - outline style, slim on mobile */}
+                <button
+                  className="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 px-3 py-1.5 text-sm md:py-2 font-medium shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
+                  onClick={() => p?.id && navigate(`/budget-smartphones/${p.id}`)}
+                  disabled={!p?.id}
+                  title="View Details"
+                >
+                  View Details
+                </button>
 
-  /* ----------------------------- Hero Images ---------------------------- */
-  heroes: {
-    list() {
-      return request("/api/heroes/");
-    },
-  },
+                {/* Buy Now - primary style, slim on mobile */}
+                <button
+                  className={`w-full inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm md:py-2 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 transition ${
+                    p?.product_id
+                      ? isAdding
+                        ? "bg-blue-600 text-white opacity-70 cursor-wait"
+                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  }`}
+                  onClick={() => {
+                    if (!p?.product_id || isAdding) return;
+                    handleBuyNow(p);
+                  }}
+                  disabled={!p?.product_id || isAdding}
+                  title={p?.product_id ? "Add to cart" : "Unavailable"}
+                >
+                  {isAdding ? "Adding…" : "Buy Now"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-  // CHECKOUT & ORDERS
-  checkout: {
-    validate() {
-      return authRequest("/api/checkout/validate/", { method: "POST" });
-    },
-    create({ shipping, billing, payment_method }) {
-      return authRequest("/api/checkout/", {
-        method: "POST",
-        body: { shipping, billing, payment_method },
-      });
-    },
-  },
-  orders: {
-    getById(id) {
-      return authRequest(`/api/orders/${id}/`);
-    },
-    receiptStatus(id) {
-      return authRequest(`/api/orders/${id}/receipt/`);
-    },
-    emailReceipt(id) {
-      return authRequest(`/api/orders/${id}/email-receipt/`, { method: "POST" });
-    },
-    downloadUrl(id) {
-      const base = getBaseUrl();
-      const prefix = base ? `${base}` : "";
-      return `${prefix}/api/orders/${id}/receipt/download/`;
-    },
-  },
-
-  /* ------------------------------- Search ------------------------------- */
-  search: {
-    async all(q, { limit = 8 } = {}) {
-      const [
-        smartphones, tablets, reallaptops, televisions, audio,
-        accessories, storages, mkopa, latestOffers,
-        budgetSmartphones, dialPhones, newIphones
-      ] = await Promise.all([
-        api.smartphones.list({ search: q, page_size: limit }),
-        api.tablets.list({ search: q, page_size: limit }),
-        api.reallaptops.list({ search: q, page_size: limit }),
-        api.televisions.list({ search: q, page_size: limit }),
-        api.audio.list({ search: q, page_size: limit }),
-        api.accessories.list({ search: q, page_size: limit }),
-        api.storages.list({ search: q, page_size: limit }),
-        api.mkopa.list({ search: q, page_size: limit }).catch(() => []),
-        api.latestOffers.list({ search: q, page_size: limit }).catch(() => []),
-        api.budgetSmartphones.list({ search: q, page_size: limit }).catch(() => []),
-        api.dialPhones.list({ search: q, page_size: limit }).catch(() => []),
-        api.newIphones.list({ search: q, page_size: limit }).catch(() => []),
-      ]);
-
-      return {
-        smartphones, tablets, reallaptops, televisions, audio,
-        accessories, storages, mkopa, latestOffers,
-        budgetSmartphones, dialPhones, newIphones
-      };
-    },
-  },
-};
-
-export default api;
-
+      {/* Pagination */}
+      {(previous || next) && (
+        <div className="mt-8 flex items-center justify-center gap-3">
+          <button
+            disabled={!previous || page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className={`px-4 py-2 rounded ${
+              previous && page > 1 ? "bg-gray-200 hover:bg-gray-300" : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            ← Previous
+          </button>
+          <span className="text-sm text-gray-600">Page {page}</span>
+          <button
+            disabled={!next}
+            onClick={() => setPage((p) => p + 1)}
+            className={`px-4 py-2 rounded ${next ? "bg-gray-200 hover:bg-gray-300" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+          >
+            Next →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
