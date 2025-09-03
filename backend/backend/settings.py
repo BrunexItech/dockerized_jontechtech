@@ -8,7 +8,7 @@ load_dotenv(BASE_DIR / ".env")
 # --- Core ---
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-key-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
@@ -21,10 +21,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -34,12 +34,9 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "backend.urls"
 
-# Templates: keep for admin and any Django-rendered pages you might add later
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates",
-    "DIRS": [
-        BASE_DIR / "templates",
-    ],
+    "DIRS": [BASE_DIR / "templates"],
     "APP_DIRS": True,
     "OPTIONS": {"context_processors": [
         "django.template.context_processors.debug",
@@ -60,7 +57,10 @@ DATABASES = {
         "PASSWORD": os.getenv("MYSQL_PASSWORD", "StrongPassw0rd!"),
         "HOST": os.getenv("MYSQL_HOST", "127.0.0.1"),
         "PORT": os.getenv("MYSQL_PORT", "3306"),
-        "OPTIONS": {"init_command": "SET sql_mode='STRICT_TRANS_TABLES'", "charset": "utf8mb4"},
+        "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            "charset": "utf8mb4"
+        },
     }
 }
 
@@ -80,11 +80,7 @@ USE_TZ = True
 
 # --- Static & Media ---
 STATIC_URL = "/static/"
-# No longer pulling in Vite build output here
-STATICFILES_DIRS = [
-    # Keep only if you have your own Django static assets under /static
-    # BASE_DIR / "static",
-]
+STATICFILES_DIRS = []
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
@@ -99,17 +95,13 @@ AUTH_USER_MODEL = "authapp.User"
 
 # --- Frontend origin (CORS/CSRF) ---
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
-# CORS: permissive in DEBUG; restrict in production to FRONTEND_URL
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     CORS_ALLOW_ALL_ORIGINS = False
-
-CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
-
-# CSRF is not required for JWT; harmless to keep if you also do cookie auth elsewhere.
-CSRF_TRUSTED_ORIGINS = [FRONTEND_URL]
 
 # --- Email ---
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND") or (
@@ -120,9 +112,7 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-
-EMAIL_TIMEOUT = os.getenv("EMAIL_TIMEOUT", "").strip()
-EMAIL_TIMEOUT = (int(EMAIL_TIMEOUT) if EMAIL_TIMEOUT.isdigit() else 0) or None
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "20"))
 
 _default_from = (os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER) or "").strip()
 if _default_from.startswith('"') and _default_from.endswith('"'):
